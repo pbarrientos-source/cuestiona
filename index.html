@@ -360,7 +360,7 @@ function vCrear(){const s=S.src,f=S.form;return`
 <div id="status" class="status ${S.statusErr?'err':''}" aria-live="polite">${esc(S.status)}</div></form>
 <div class="how"><div><b>1. Lee el contenido</b><span>Usa los subtítulos o pasa el audio a texto con Whisper, lee el texto en pantalla o el texto de cada página.</span></div><div><b>2. Ubica momentos clave</b><span>Cada pregunta va justo después de la parte que la respalda.</span></div><div><b>3. Tú revisas</b><span>Editas, corriges y la usas en clase o la exportas.</span></div></div></section>`}
 function capNote(){const el=$('#capnote');if(!el||!S.capReady)return;let m='';
-  if(!aiReady())m=FALTA;
+  if(!aiReady()){el.innerHTML='Falta tu clave de IA. <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Obtener clave gratis de Gemini ↗</a> · <button type="button" class="btn ghost" style="min-height:36px;padding:4px 12px" data-go="ajustes">Pegarla en Ajustes</button>';return}
   el.textContent=m}
 function status(m,err){S.status=m;S.statusErr=!!err;const el=$('#status');if(el){el.textContent=m;el.classList.toggle('err',!!err)}}
 
@@ -646,13 +646,15 @@ function bindPlayer(){if(!$('#pvh'))return;const L=S.cur,st=S.st,qs=L.preguntas;
 function vAjustes(){const g=CFG.prov==='gemini';const gm=(CFG.gmodels&&CFG.gmodels.length?CFG.gmodels:[CFG.gmodel]);return`<section class="band"><h1>Ajustes</h1><p class="lead">Elige qué IA crea y corrige las preguntas. Las claves quedan guardadas solo en este navegador.</p>
 <div class="card gen" style="margin-top:18px"><h2 style="margin:0">IA que usa Cuestiona</h2>
 <fieldset class="chips"><legend>Proveedor</legend><label class="chip"><input type="radio" name="prov" value="gemini" ${g?'checked':''}><span>Gemini (gratis, con límites)</span></label><label class="chip"><input type="radio" name="prov" value="claude" ${g?'':'checked'}><span>Claude (pago por uso)</span></label></fieldset>
-${g?`<label>Clave de Gemini (Google AI Studio)<input id="cfg-gkey" type="password" autocomplete="off" placeholder="AIza…" value="${esc(CFG.gkey)}"></label>
+${g?`<div class="row" style="justify-content:flex-start;align-items:center"><a class="btn brand" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Obtener mi clave gratis de Gemini ↗</a><span class="meta">Se abre Google AI Studio: toca "Create API key", cópiala y pégala abajo.</span></div>
+<label>Clave de Gemini (Google AI Studio)<input id="cfg-gkey" type="password" autocomplete="off" placeholder="AIza…" value="${esc(CFG.gkey)}"></label>
 <div class="row" style="justify-content:flex-start;align-items:end"><label class="inline">Modelo<select id="cfg-gmodel">${gm.map(m=>`<option value="${esc(m)}" ${CFG.gmodel===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label><button class="btn" data-act="cfg-gload">Cargar modelos</button></div>
 <details class="hint" open><summary>Cómo conseguir la clave gratis</summary><ol>
 <li>Entra a <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> con tu cuenta de Google y toca <b>Create API key</b>.</li>
 <li>Pégala aquí, toca <b>Cargar modelos</b> y elige uno "flash" (el "flash-lite" gasta menos cupo).</li>
 <li>El plan gratis tiene límites diarios y Google usa esos datos para mejorar sus productos: no envíes nombres de alumnos.</li></ol></details>`
-:`<label>Clave de API de Anthropic<input id="cfg-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(CFG.key)}"></label>
+:`<div class="row" style="justify-content:flex-start;align-items:center"><a class="btn brand" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener mi clave de Claude ↗</a><span class="meta">Se abre la consola de Anthropic: carga saldo, crea la clave, cópiala y pégala abajo.</span></div>
+<label>Clave de API de Anthropic<input id="cfg-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(CFG.key)}"></label>
 <label class="inline">Modelo<select id="cfg-model">${MODELOS.map(([v,n])=>`<option value="${v}" ${CFG.model===v?'selected':''}>${n}</option>`).join('')}</select></label>
 <details class="hint" open><summary>Dónde conseguir la clave y cómo cuidarla</summary><ol>
 <li>Entra a <a class="link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>, carga saldo y crea una clave en <b>API Keys</b>.</li>
