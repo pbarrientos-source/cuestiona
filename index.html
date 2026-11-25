@@ -257,7 +257,10 @@ function mcpMsg(e){const c=e&&e.code;switch(c){
 /* ---------- capacidades y guardado ---------- */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 const MODELOS=[['claude-sonnet-5-5','Claude Sonnet 5.5 (recomendado)'],['claude-opus-5-5','Claude Opus 5.5 (más capaz, más caro)'],['claude-haiku-5-5','Claude Haiku 5.5 (más rápido y barato)']];
-const CFG=Object.assign({key:'',model:'claude-sonnet-5-5'},LS.get('cuestiona.cfg',{}));
+const CFG=Object.assign({prov:'gemini',key:'',model:'claude-sonnet-5-5',gkey:'',gmodel:'gemini-3.8-flash',gmodels:[]},LS.get('cuestiona.cfg',{}));
+const aiReady=()=>CFG.prov==='gemini'?!!CFG.gkey:!!CFG.key;
+const aiNombre=()=>CFG.prov==='gemini'?'Gemini ('+CFG.gmodel+')':'Claude ('+CFG.model+')';
+const FALTA='Falta tu clave de IA. Agrégala en Ajustes (Gemini es gratis con la cuenta de Google AI Studio).';
 const guardarCfg=()=>LS.set('cuestiona.cfg',CFG);
 const blob64=b=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=()=>ko(r.error);r.readAsDataURL(b)});
 function apiMsg(st,m){return st===401?'La clave de API no es válida. Revísala en Ajustes.':st===403?'Tu clave no tiene permiso para este modelo.':st===404?'El modelo elegido no está disponible para tu cuenta. Cambia el modelo en Ajustes.':st===429?'Llegaste al límite de uso de tu cuenta de API. Espera un momento o revisa tu saldo en console.anthropic.com.':st===529||st>=500?'El servicio de Claude está ocupado. Intenta de nuevo en un momento.':'Error de la API ('+st+')'+(m?': '+m:'')}
@@ -273,12 +276,33 @@ async function claudeAPI(prompt,o={}){if(!CFG.key)throw Object.assign(new Error(
       else if(d.type==='message_delta'&&d.delta&&d.delta.stop_reason)stop=d.delta.stop_reason;
       else if(d.type==='error')throw new Error('Error de la API: '+(d.error&&d.error.message||'desconocido'))}}
   if(!text.trim())throw new Error('La IA no devolvió texto. Vuelve a intentarlo.');return{text,truncated:stop==='max_tokens'}}
-const sampleFn=(p,o)=>claudeAPI(p,o||{});
-sampleFn.json=async(p,o)=>{const r=await claudeAPI(p,o||{});const j=parseJSON(r.text);if(!j)throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');return j};
+function gemMsg(st,m){return st===400&&/api key/i.test(m)?'La clave de Gemini no es válida. Revísala en Ajustes.':st===403?'Tu clave de Gemini no tiene permiso para este modelo o el video no es público.':st===404?'El modelo de Gemini elegido no existe. Toca "Cargar modelos" en Ajustes y elige otro.':st===429?'Llegaste al límite gratuito de Gemini por ahora. Espera un rato (se reinicia cada día) o elige un modelo "flash-lite" en Ajustes.':st>=500?'Gemini está ocupado. Intenta de nuevo en un momento.':'Error de Gemini ('+st+')'+(m?': '+m:'')}
+async function geminiAPI(prompt,o={}){if(!CFG.gkey)throw Object.assign(new Error(FALTA),{code:'no_key'});
+  const parts=[];if(o.video)parts.push({file_data:{file_uri:o.video}});
+  for(const b of(o.images||[]))parts.push({inline_data:{mime_type:b.type||'image/jpeg',data:await blob64(b)}});parts.push({text:prompt});
+  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(CFG.gmodel)+':streamGenerateContent?alt=sse',{method:'POST',headers:{'x-goog-api-key':CFG.gkey,'content-type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{maxOutputTokens:o.maxTokens||16000}})})}
+  catch(e){throw new Error('No hay conexión con Gemini. Revisa tu internet.')}
+  if(!r.ok){let m='';try{const j=await r.json();m=j&&j.error&&j.error.message||''}catch(e){}throw Object.assign(new Error(gemMsg(r.status,m)),{code:'gem_'+r.status})}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',text='',stop='',block='';
+  const take=line=>{if(!line.startsWith('data:'))return;let d;try{d=JSON.parse(line.slice(5))}catch(e){return}
+    if(d.error)throw new Error('Error de Gemini: '+(d.error.message||''));if(d.promptFeedback&&d.promptFeedback.blockReason)block=d.promptFeedback.blockReason;
+    const c=d.candidates&&d.candidates[0];if(!c)return;if(c.finishReason)stop=c.finishReason;
+    for(const pt of(c.content&&c.content.parts||[]))if(pt.text&&!pt.thought){text+=pt.text;if(o.onText)o.onText({text})}};
+  for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+    while((i=buf.search(/\r?\n\r?\n/))>=0){const ev=buf.slice(0,i);buf=buf.slice(i).replace(/^\r?\n\r?\n/,'');ev.split(/\r?\n/).forEach(take)}}
+  if(buf.trim())buf.split(/\r?\n/).forEach(take);
+  if(!text.trim())throw new Error(block?'Gemini bloqueó la solicitud ('+block+').':'Gemini no devolvió texto. Si usaste un video de YouTube, revisa que sea público.');
+  return{text,truncated:stop==='MAX_TOKENS'}}
+async function listarGemini(){const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':CFG.gkey}});if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}throw new Error(gemMsg(r.status,m))}
+  const j=await r.json();return(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')&&/gemini/i.test(m.name)&&!/embedding|image|tts|audio|live/i.test(m.name)).map(m=>m.name.replace(/^models\//,''))}
+const aiCall=(p,o)=>CFG.prov==='gemini'?geminiAPI(p,o||{}):claudeAPI(p,o||{});
+const sampleFn=(p,o)=>aiCall(p,o||{});
+sampleFn.json=async(p,o)=>{const r=await aiCall(p,o||{});const j=parseJSON(r.text);if(!j)throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');return j};
 sampleFn.limits=async()=>({images:{maxCount:12}});
 cap={sample:sampleFn,mcp:null,downloads:{save:async({filename,data})=>{const b=data instanceof Blob?data:new Blob([data],{type:/\.json$/.test(filename)?'application/json':/\.csv$/.test(filename)?'text/csv;charset=utf-8':'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);return{status:'saved'}}}};
 S.capReady=true;
 function initDB(){S.lessons=(LS.get('cuestiona.lessons',[])||[]).filter(x=>x&&x.id&&Array.isArray(x.preguntas)).sort((a,b)=>(b.creada||0)-(a.creada||0));S.dbOK=true;updCount();setSync()}
+function leerCfg(){const v=id=>{const e=$('#'+id);return e?e.value.trim():null};const k=v('cfg-key'),m=v('cfg-model'),gk=v('cfg-gkey'),gm=v('cfg-gmodel');if(k!==null)CFG.key=k;if(m)CFG.model=m;if(gk!==null)CFG.gkey=gk;if(gm)CFG.gmodel=gm}
 function persist(){if(!LS.set('cuestiona.lessons',S.lessons))setSync('No se pudo guardar: el navegador no tiene espacio');}
 function upsertLocal(L){const c=clone(L),i=S.lessons.findIndex(x=>x.id===L.id);if(i>=0)S.lessons[i]=c;else S.lessons.unshift(c);updCount()}
 let saveT=null,saving=Promise.resolve();
@@ -316,7 +340,8 @@ function vCrear(){const s=S.src,f=S.form;return`
 <section class="band"><form class="card gen lift" id="gen" novalidate>
 <div class="tabs" role="tablist" aria-label="Fuente">${[['yt','Video de YouTube'],['vid','Subir video o audio'],['pdf','PDF'],['txt','Texto o transcripción']].map(([k,n])=>`<button type="button" role="tab" aria-selected="${k===s}" data-act="src" data-k="${k}">${n}</button>`).join('')}</div>
 <div class="srcp">${s==='yt'?`<label>Enlace del video<input id="f-url" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" value="${esc(f.url)}"></label>
-<label>Transcripción del video (con sus tiempos)<textarea id="f-ytx" rows="7" placeholder="0:00&#10;Hola, hoy vamos a ver…&#10;0:12&#10;…">${esc(f.ytx)}</textarea></label>
+<p class="hint" style="margin:0">${CFG.prov==='gemini'?'<b>Con Gemini no necesitas la transcripción:</b> Gemini ve el video completo (imagen y audio). Solo funciona con videos públicos.':'Con Claude debes pegar la transcripción. Si eliges Gemini en Ajustes, basta con el enlace.'}</p>
+<label>Transcripción del video (con sus tiempos)${CFG.prov==='gemini'?' — opcional':''}<textarea id="f-ytx" rows="7" placeholder="0:00&#10;Hola, hoy vamos a ver…&#10;0:12&#10;…">${esc(f.ytx)}</textarea></label>
 <details class="hint"><summary>¿Cómo copio la transcripción de YouTube?</summary><ol><li>Abre el video en YouTube, en el computador.</li><li>Bajo el video, en la descripción, toca <b>…más</b> y luego <b>Mostrar transcripción</b>.</li><li>Selecciona todo el texto de la transcripción (con los tiempos), cópialo y pégalo aquí.</li></ol></details>
 <p class="hint">El video se verá dentro de Cuestiona. Si el video no tiene transcripción, usa "Subir video o audio" con el archivo.</p>`
 :s==='vid'?`<label>Archivo de video o audio<input id="f-vid" type="file" accept="video/*,audio/*"></label>${S.vidFile?`<p class="hint">Seleccionado: ${esc(S.vidFile.name)} (${(S.vidFile.size/1e6).toFixed(1)} MB)</p>`:''}
@@ -335,7 +360,7 @@ function vCrear(){const s=S.src,f=S.form;return`
 <div id="status" class="status ${S.statusErr?'err':''}" aria-live="polite">${esc(S.status)}</div></form>
 <div class="how"><div><b>1. Lee el contenido</b><span>Usa los subtítulos o pasa el audio a texto con Whisper, lee el texto en pantalla o el texto de cada página.</span></div><div><b>2. Ubica momentos clave</b><span>Cada pregunta va justo después de la parte que la respalda.</span></div><div><b>3. Tú revisas</b><span>Editas, corriges y la usas en clase o la exportas.</span></div></div></section>`}
 function capNote(){const el=$('#capnote');if(!el||!S.capReady)return;let m='';
-  if(!CFG.key)m='Falta tu clave de API de Anthropic: agrégala en Ajustes para que la IA pueda crear preguntas.';
+  if(!aiReady())m=FALTA;
   el.textContent=m}
 function status(m,err){S.status=m;S.statusErr=!!err;const el=$('#status');if(el){el.textContent=m;el.classList.toggle('err',!!err)}}
 
@@ -431,7 +456,7 @@ async function desdeArchivo(file,f){if(!file)throw new Error('Elige un archivo d
 
 /* ---------- IA: generar ---------- */
 function promptGen(F,f,tipos){
-  const fuente=F.local?`Contenido de un video subido por el docente, en líneas con tiempo [m:ss]. "(voz)" = audio pasado a texto con Whisper (puede tener palabras o nombres mal escritos: corrígelos solo si es evidente por el contexto); "(pantalla)" = texto escrito que aparece en el video; "(se ve)" = breve descripción de la acción visible. Duración: ${fmt(F.duracion)}.`:F.modo==='video'?`Transcripción de un video${F.kind==='asr'?' (subtítulos automáticos: pueden traer palabras mal escritas)':''}, en bloques con tiempo [m:ss]. Duración: ${fmt(F.duracion)}.`:F.modo==='doc'?`Texto de un PDF${F.nombre?' llamado "'+F.nombre+'"':''}, marcado por página [p. N]. Páginas: ${F.paginas}.`:`Texto dividido en secciones [Sección N]. Secciones: ${F.secciones}.`;
+  const fuente=F.gvideo?`El video de YouTube adjunto. Míralo completo: lo que se dice, lo que se muestra y el texto que aparece en pantalla. Ubica cada momento por su tiempo real en el video.`:F.local?`Contenido de un video subido por el docente, en líneas con tiempo [m:ss]. "(voz)" = audio pasado a texto con Whisper (puede tener palabras o nombres mal escritos: corrígelos solo si es evidente por el contexto); "(pantalla)" = texto escrito que aparece en el video; "(se ve)" = breve descripción de la acción visible. Duración: ${fmt(F.duracion)}.`:F.modo==='video'?`Transcripción de un video${F.kind==='asr'?' (subtítulos automáticos: pueden traer palabras mal escritas)':''}, en bloques con tiempo [m:ss]. Duración: ${fmt(F.duracion)}.`:F.modo==='doc'?`Texto de un PDF${F.nombre?' llamado "'+F.nombre+'"':''}, marcado por página [p. N]. Páginas: ${F.paginas}.`:`Texto dividido en secciones [Sección N]. Secciones: ${F.secciones}.`;
   const unidad=F.modo==='video'?'segundos desde el inicio del video (número entero)':F.modo==='doc'?'número de página':'número de sección';
   const cant=f.n&&f.n!=='auto'?f.n+' preguntas en total, contando encuestas':F.modo==='video'?'automática: 1 pregunta cada 1 a 2 minutos de video, mínimo 4 y máximo 12, contando encuestas':'automática: entre 4 y 10 según el largo';
   return`Eres "Cuestiona", un asistente que convierte contenidos en lecciones interactivas para docentes. Lees todo el contenido, detectas los momentos clave y pones preguntas en esos puntos.
@@ -459,8 +484,7 @@ FORMATO: responde SOLO con JSON válido, sin texto antes ni después:
 {"titulo":"título corto de la lección","resumen":"1 o 2 frases sobre de qué trata","preguntas":[{"t":0,"tipo":"multiple|abierta|encuesta|reflexion","enunciado":"","opciones":[{"texto":"","correcta":false,"feedback":""}],"esperada":"","criterios":[{"criterio":"","puntos":2}],"respaldo":"cita literal","ubicacion":"m:ss o p. N","nivel":"Recordar|Comprender|Aplicar|Analizar|Evaluar|Crear"}]}
 En abiertas y reflexión usa "opciones":[]. En encuestas no marques correctas.
 
-FUENTE
-${F.texto.slice(0,90000)}`}
+${F.gvideo?'Agrega también al JSON el campo "duracion" con la duración total del video en segundos.\n\nFUENTE\n(el video adjunto)':'FUENTE\n'+F.texto.slice(0,90000)}`}
 function ajustarTipo(q){
   if(q.tipo==='multiple'&&q.opciones.length<2)q.opciones=Array.from({length:4},(_,i)=>({texto:'',correcta:i===0,feedback:''}));
   if(q.tipo==='encuesta'){if(q.opciones.length<2)q.opciones=['Nada','Poco','Bastante','Mucho'].map(t=>({texto:t,correcta:false,feedback:''}));q.opciones.forEach(o=>{o.correcta=false})}
@@ -471,13 +495,16 @@ function normalizar(qs,F){const max=F.modo==='video'?F.duracion:F.modo==='doc'?F
     if(tipo==='encuesta')o.opciones.forEach(x=>{x.correcta=false;x.feedback=''});ajustarTipo(o);return o}).sort((a,b)=>a.t-b.t)}
 async function generar(){if(S.busy)return;const f=S.form,tipos=f.tipos;
   if(!tipos.length)return status('Elige al menos un tipo de pregunta.',true);
-  if(!CFG.key)return status('Falta tu clave de API de Anthropic. Agrégala en Ajustes.',true);
+  if(!aiReady())return status(FALTA,true);
   S.busy=true;const b=$('#go');if(b){b.disabled=true;b.textContent='Generando…'}
   try{let F;
-    if(S.src==='yt'){if(!ytId(f.url))throw new Error('Pega el enlace del video de YouTube.');F=desdeTexto(f.ytx,f.url);if(F.modo!=='video')throw new Error('La transcripción debe traer los tiempos (por ejemplo 1:05). Cópiala desde "Mostrar transcripción" en YouTube.');F.kind='youtube'}else if(S.src==='vid')F=await desdeArchivo(S.vidFile,f);else if(S.src==='pdf')F=await desdePDF(S.pdfFile);else F=desdeTexto(f.txt,f.url2);
-    status('La IA está leyendo el contenido y armando las preguntas…');
-    let r;try{r=await cap.sample(promptGen(F,f,tipos),{modelTier:'complex',onText:({text})=>status(`Escribiendo preguntas… ${Math.round(text.length/100)/10} mil caracteres`)})}catch(e){throw new Error(sampleMsg(e))}
+    if(S.src==='yt'){if(!ytId(f.url))throw new Error('Pega el enlace del video de YouTube.');
+      if(CFG.prov==='gemini'&&!String(f.ytx||'').trim()){const id=ytId(f.url);F={modo:'video',videoId:id,url:'https://www.youtube.com/watch?v='+id,duracion:0,kind:'gemini-video',gvideo:true,texto:''}}
+      else{F=desdeTexto(f.ytx,f.url);if(F.modo!=='video')throw new Error('La transcripción debe traer los tiempos (por ejemplo 1:05). Cópiala desde "Mostrar transcripción" en YouTube.');F.kind='youtube'}}else if(S.src==='vid')F=await desdeArchivo(S.vidFile,f);else if(S.src==='pdf')F=await desdePDF(S.pdfFile);else F=desdeTexto(f.txt,f.url2);
+    status(F.gvideo?'Gemini está viendo el video y armando las preguntas… (puede tardar un par de minutos)':'La IA está leyendo el contenido y armando las preguntas…');
+    let r;try{r=await cap.sample(promptGen(F,f,tipos),{video:F.gvideo?F.url:undefined,modelTier:'complex',onText:({text})=>status(`Escribiendo preguntas… ${Math.round(text.length/100)/10} mil caracteres`)})}catch(e){throw new Error(sampleMsg(e))}
     const j=parseJSON(r&&r.text);if(!j||!Array.isArray(j.preguntas))throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');
+    if(F.gvideo){const mx=Math.max(0,...(j.preguntas||[]).map(q=>parseT(String(q.t))??(+q.t||0)));F.duracion=Math.round(+j.duracion||0)||mx+30}
     const L={id:uid(),titulo:String(j.titulo||F.nombre||'Lección sin título'),resumen:String(j.resumen||''),modo:F.modo,videoId:F.videoId||'',url:F.url||'',archivo:F.nombre||'',duracion:F.duracion||0,paginas:F.paginas||F.secciones||0,kind:F.kind||'',curso:f.curso||'',tema:f.tema||'',creada:Date.now(),preguntas:normalizar(j.preguntas,F)};
     if(!L.preguntas.length)throw new Error('La IA no devolvió preguntas. Prueba otra vez o con otra fuente.');
     if(F.mediaUrl){S.media[L.id]=F.mediaUrl;if(S.vidFile)idb.set(L.id,S.vidFile)}
@@ -486,7 +513,7 @@ async function generar(){if(S.busy)return;const f=S.form,tipos=f.tipos;
 
 /* ---------- vista: editor ---------- */
 const tlMax=L=>L.modo==='video'?Math.max(1,L.duracion||Math.max(1,...L.preguntas.map(q=>q.t))):Math.max(1,L.paginas||0,...L.preguntas.map(q=>q.t));
-function metaLine(L){const a=[L.modo==='video'?'Video · '+fmt(L.duracion):L.modo==='doc'?'PDF · '+L.paginas+' págs.':'Texto',L.preguntas.length+' preguntas'];if(L.curso)a.push(L.curso);if(L.kind==='asr')a.push('subtítulos automáticos');if(L.kind==='whisper')a.push('audio pasado a texto con Whisper');if(L.kind==='pantalla')a.push('texto en pantalla');return esc(a.join(' · '))}
+function metaLine(L){const a=[L.modo==='video'?'Video · '+fmt(L.duracion):L.modo==='doc'?'PDF · '+L.paginas+' págs.':'Texto',L.preguntas.length+' preguntas'];if(L.curso)a.push(L.curso);if(L.kind==='asr')a.push('subtítulos automáticos');if(L.kind==='whisper')a.push('audio pasado a texto con Whisper');if(L.kind==='pantalla')a.push('texto en pantalla');if(L.kind==='gemini-video')a.push('analizado por Gemini');return esc(a.join(' · '))}
 function tlHTML(){const L=S.cur,max=tlMax(L);return`<div class="tl"><div class="tlbar">${L.modo==='video'?'<span id="edhead" class="head"></span>':''}${L.preguntas.map((q,i)=>`<button class="mk ${i===S.sel?'on':''}" style="left:${(Math.min(q.t,max)/max*100).toFixed(2)}%;--c:${TIPOS[q.tipo].c}" data-act="sel" data-i="${i}" aria-label="${esc(ubic(q))}, ${esc(TIPOS[q.tipo].n)}"></button>`).join('')}</div>
 <div class="tlx"><span>${L.modo==='video'?'0:00':L.modo==='doc'?'p. 1':'Inicio'}</span><span>${L.modo==='video'?fmt(max):L.modo==='doc'?'p. '+max:'Final'}</span></div></div>`}
 function eventsHTML(){const qs=S.cur.preguntas;return`<div class="evh"><span>Eventos</span><span>${qs.length}</span></div>${qs.map((q,i)=>`<button class="ev ${i===S.sel?'on':''}" data-act="sel" data-i="${i}" style="--c:${TIPOS[q.tipo].c}"><span class="evt">${ico(q.tipo,15)} ${TIPOS[q.tipo].n}</span><span class="evtime">${esc(ubic(q))}</span><span class="evq">${esc(q.enunciado||'(sin enunciado)')}</span></button>`).join('')}
@@ -616,16 +643,24 @@ function bindPlayer(){if(!$('#pvh'))return;const L=S.cur,st=S.st,qs=L.preguntas;
 
 
 /* ---------- vista: ajustes ---------- */
-function vAjustes(){return`<section class="band"><h1>Ajustes</h1><p class="lead">Cuestiona usa tu propia clave de la API de Anthropic para crear y corregir preguntas. Cada uso se cobra a tu cuenta de API.</p>
-<div class="card gen" style="margin-top:18px"><h2 style="margin:0">Clave de API</h2>
-<label>Clave de API de Anthropic<input id="cfg-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(CFG.key)}"></label>
+function vAjustes(){const g=CFG.prov==='gemini';const gm=(CFG.gmodels&&CFG.gmodels.length?CFG.gmodels:[CFG.gmodel]);return`<section class="band"><h1>Ajustes</h1><p class="lead">Elige qué IA crea y corrige las preguntas. Las claves quedan guardadas solo en este navegador.</p>
+<div class="card gen" style="margin-top:18px"><h2 style="margin:0">IA que usa Cuestiona</h2>
+<fieldset class="chips"><legend>Proveedor</legend><label class="chip"><input type="radio" name="prov" value="gemini" ${g?'checked':''}><span>Gemini (gratis, con límites)</span></label><label class="chip"><input type="radio" name="prov" value="claude" ${g?'':'checked'}><span>Claude (pago por uso)</span></label></fieldset>
+${g?`<label>Clave de Gemini (Google AI Studio)<input id="cfg-gkey" type="password" autocomplete="off" placeholder="AIza…" value="${esc(CFG.gkey)}"></label>
+<div class="row" style="justify-content:flex-start;align-items:end"><label class="inline">Modelo<select id="cfg-gmodel">${gm.map(m=>`<option value="${esc(m)}" ${CFG.gmodel===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label><button class="btn" data-act="cfg-gload">Cargar modelos</button></div>
+<details class="hint" open><summary>Cómo conseguir la clave gratis</summary><ol>
+<li>Entra a <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> con tu cuenta de Google y toca <b>Create API key</b>.</li>
+<li>Pégala aquí, toca <b>Cargar modelos</b> y elige uno "flash" (el "flash-lite" gasta menos cupo).</li>
+<li>El plan gratis tiene límites diarios y Google usa esos datos para mejorar sus productos: no envíes nombres de alumnos.</li></ol></details>`
+:`<label>Clave de API de Anthropic<input id="cfg-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(CFG.key)}"></label>
 <label class="inline">Modelo<select id="cfg-model">${MODELOS.map(([v,n])=>`<option value="${v}" ${CFG.model===v?'selected':''}>${n}</option>`).join('')}</select></label>
-<div class="acts"><button class="btn brand" data-act="cfg-save">Guardar</button><button class="btn" data-act="cfg-test">Probar conexión</button>${CFG.key?`<button class="btn ghost danger" data-act="cfg-del">Borrar clave</button>`:''}</div>
-<p class="status" id="cfgst">${esc(S.cfgMsg||'')}</p>
 <details class="hint" open><summary>Dónde conseguir la clave y cómo cuidarla</summary><ol>
-<li>Entra a <a class="link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> con tu cuenta, carga saldo y crea una clave en <b>API Keys</b>.</li>
-<li>Fija un límite de gasto mensual en la consola, para no llevarte sorpresas.</li>
-<li>La clave queda guardada <b>solo en este navegador</b>. No la escribas en el código ni la subas a GitHub. Si usas un computador compartido, bórrala al terminar.</li></ol></details></div>
+<li>Entra a <a class="link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>, carga saldo y crea una clave en <b>API Keys</b>.</li>
+<li>Fija un límite de gasto mensual en la consola.</li>
+<li>Con Claude debes pegar la transcripción de los videos de YouTube.</li></ol></details>`}
+<div class="acts"><button class="btn brand" data-act="cfg-save">Guardar</button><button class="btn" data-act="cfg-test">Probar conexión</button>${(g?CFG.gkey:CFG.key)?`<button class="btn ghost danger" data-act="cfg-del">Borrar clave</button>`:''}</div>
+<p class="status" id="cfgst">${esc(S.cfgMsg||'')}</p>
+<p class="hint">Nunca escribas tus claves en el código ni las subas a GitHub. Si usas un computador compartido, bórralas al terminar.</p></div>
 <div class="card gen" style="margin-top:18px"><h2 style="margin:0">Respaldo de lecciones</h2>
 <p class="hint">Tus lecciones se guardan en este navegador. Descarga un respaldo de vez en cuando. También puedes importar lecciones descargadas desde la versión de Cuestiona en claude.ai (botón "Descargar JSON").</p>
 <div class="acts"><button class="btn" data-act="exp-all">Descargar todas (${S.lessons.length})</button></div>
@@ -640,14 +675,14 @@ function vCorregir(){const g=S.grade||(S.grade={lid:'',qid:'',preg:'',esperada:'
 <div class="card gen" style="margin-top:18px"><div class="grid2"><label>Lección<select data-g2="lid"><option value="">Escribir la pauta a mano</option>${ls.map(x=>`<option value="${esc(x.id)}" ${x.id===g.lid?'selected':''}>${esc(x.titulo)}</option>`).join('')}</select></label>
 ${L?`<label>Pregunta<select data-g2="qid">${ab.length?ab.map(q=>`<option value="${esc(q.id)}" ${q.id===g.qid?'selected':''}>${esc(ubic(q,L))} · ${esc(q.enunciado.slice(0,80))}</option>`).join(''):'<option value="">Esta lección no tiene preguntas abiertas</option>'}</select></label>`:''}</div>
 ${L?'':`<label>Pregunta<textarea rows="2" data-g="preg">${esc(g.preg)}</textarea></label><label>Respuesta esperada<textarea rows="3" data-g="esperada">${esc(g.esperada)}</textarea></label><label>Criterios (uno por línea, con puntos al final)<textarea rows="3" data-g="criterios" placeholder="Menciona el rango de temperatura de riesgo – 2&#10;Explica por qué se multiplican las bacterias – 2">${esc(g.criterios)}</textarea></label>`}
-<label>Respuestas (una por línea: Nombre: respuesta)<textarea rows="8" data-g="resp" placeholder="Camila Soto: Hay que enfriar rápido porque…&#10;Diego Rojas: …">${esc(g.resp)}</textarea></label>
+${CFG.prov==='gemini'?'<p class="hint" style="margin:0">Con Gemini gratis, usa iniciales o números de lista en vez de nombres.</p>':''}<label>Respuestas (una por línea: Nombre: respuesta)<textarea rows="8" data-g="resp" placeholder="Camila Soto: Hay que enfriar rápido porque…&#10;Diego Rojas: …">${esc(g.resp)}</textarea></label>
 <div class="row"><span class="meta">Hasta 60 respuestas por vez.</span><button class="btn brand big" data-act="corregir" ${g.busy?'disabled':''}>${g.busy?'Corrigiendo…':'Corregir con IA'}</button></div>
 <div class="status ${g.err?'err':''}" aria-live="polite">${esc(g.msg)}</div></div>
 ${g.res?`<div class="card gen" style="margin-top:18px"><div class="hrow" style="margin:0"><h2 style="margin:0">Propuesta de corrección</h2><div class="acts" style="margin:0"><button class="btn" data-act="g-copy">Copiar</button><button class="btn" data-act="g-dl">Descargar CSV</button></div></div>
 <div class="scroll"><table class="stack"><thead><tr><th>Estudiante</th><th>Puntaje</th><th>Nivel</th><th>Retroalimentación</th><th>Revisar</th></tr></thead><tbody>${g.res.map(r=>`<tr><td>${esc(r.estudiante)}</td><td class="n">${esc(r.puntaje)} / ${esc(r.maximo)}</td><td>${esc(r.nivel)}</td><td>${esc(r.feedback)}</td><td>${r.revisar?`<span class="flag">Sí</span> ${esc(r.motivo||'')}`:'No'}</td></tr>`).join('')}</tbody></table></div></div>`:''}</section>`}
 const filasGrade=()=>[['Estudiante','Respuesta','Puntaje','Máximo','Nivel','Retroalimentación','Revisar','Motivo']].concat(S.grade.res.map(r=>[r.estudiante,r.respuesta,r.puntaje,r.maximo,r.nivel,r.feedback,r.revisar?'Sí':'No',r.motivo||'']));
 async function corregir(){const g=S.grade;if(g.busy)return;const fail=m=>{g.msg=m;g.err=true;render()};
-  if(!CFG.key)return fail('Falta tu clave de API de Anthropic. Agrégala en Ajustes.');
+  if(!aiReady())return fail(FALTA);
   const L=todas().find(x=>x.id===g.lid);let preg,esp,crit;
   if(L){const q=L.preguntas.find(x=>x.id===g.qid);if(!q)return fail('Elige una pregunta abierta.');preg=q.enunciado;esp=q.esperada;crit=q.criterios.map(c=>`- ${c.criterio} (${c.puntos} pts)`).join('\n')}else{preg=g.preg;esp=g.esperada;crit=g.criterios}
   if(!String(preg||'').trim())return fail('Escribe la pregunta.');
@@ -686,6 +721,7 @@ main.addEventListener('change',e=>{const el=e.target;
   if(el.id==='f-vid'){S.vidFile=el.files&&el.files[0]||null;return}
   if(el.id==='f-asr'||el.id==='f-ocr'){S.form[el.id.slice(2)]=el.checked;return}
   if(el.id==='f-lang'){S.form.lang=el.value;return}
+  if(el.name==='prov'){leerCfg();CFG.prov=el.value;guardarCfg();S.cfgMsg='';render();return}
   if(el.id==='pv-pausa'&&S.st){S.st.pausa=el.checked;return}
   if(el.id==='ed-file'&&S.cur){const fl=el.files&&el.files[0];if(!fl)return;S.media[S.cur.id]=URL.createObjectURL(fl);idb.set(S.cur.id,fl);render();return}
   if(el.id==='imp-file'){const fl=el.files&&el.files[0];if(!fl)return;fl.text().then(t=>{let d;try{d=JSON.parse(t)}catch(e){toast('El archivo no es un JSON válido.');return}const arr=(Array.isArray(d)?d:[d]).filter(x=>x&&Array.isArray(x.preguntas));if(!arr.length){toast('No encontré lecciones en ese archivo.');return}
@@ -726,10 +762,12 @@ document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g
     case'st-dl':bajar(slug(L.titulo)+'-'+slug(S.st.name||'estudiante')+'.csv',csv(filasResultados()));break;
     case'corregir':corregir();break;
     case'tnow':{if(!PL||!q)return;q.t=Math.round(PL.get());ordenar();refreshEditor();dirty();break}
-    case'cfg-save':{CFG.key=(($('#cfg-key')||{}).value||'').trim();CFG.model=(($('#cfg-model')||{}).value)||CFG.model;guardarCfg();S.cfgMsg=CFG.key?'Ajustes guardados.':'Clave borrada.';render();break}
-    case'cfg-del':{CFG.key='';guardarCfg();S.cfgMsg='Clave borrada de este navegador.';render();break}
-    case'cfg-test':{const k=(($('#cfg-key')||{}).value||'').trim();if(k){CFG.key=k;CFG.model=(($('#cfg-model')||{}).value)||CFG.model;guardarCfg()}const out=$('#cfgst');if(out)out.textContent='Probando…';
-      claudeAPI('Responde solo con la palabra: listo',{maxTokens:20}).then(r=>{S.cfgMsg='Conexión correcta ✓ ('+CFG.model+')';if(out)out.textContent=S.cfgMsg}).catch(e=>{S.cfgMsg=e.message;if(out)out.textContent=e.message});break}
+    case'cfg-save':{leerCfg();guardarCfg();S.cfgMsg=aiReady()?'Ajustes guardados. IA: '+aiNombre():'Ajustes guardados, pero falta la clave.';render();break}
+    case'cfg-del':{if(CFG.prov==='gemini')CFG.gkey='';else CFG.key='';guardarCfg();S.cfgMsg='Clave borrada de este navegador.';render();break}
+    case'cfg-test':{leerCfg();guardarCfg();const out=$('#cfgst');if(out)out.textContent='Probando…';
+      aiCall('Responde solo con la palabra: listo',{maxTokens:50}).then(()=>{S.cfgMsg='Conexión correcta ✓ — '+aiNombre();if(out)out.textContent=S.cfgMsg}).catch(e=>{S.cfgMsg=e.message;if(out)out.textContent=e.message});break}
+    case'cfg-gload':{leerCfg();if(!CFG.gkey){toast('Primero pega tu clave de Gemini.');return}const out=$('#cfgst');if(out)out.textContent='Cargando modelos…';
+      listarGemini().then(ms=>{if(!ms.length)throw new Error('Tu cuenta no tiene modelos Gemini disponibles.');CFG.gmodels=ms;if(!ms.includes(CFG.gmodel)){const pref=ms.filter(m=>/flash/.test(m)&&!/lite|preview|exp/.test(m));CFG.gmodel=(pref.length?pref:ms).sort().reverse()[0]}guardarCfg();S.cfgMsg=ms.length+' modelos cargados. Elegido: '+CFG.gmodel;render()}).catch(e=>{S.cfgMsg=e.message;if(out)out.textContent=e.message});break}
     case'exp-all':bajar('cuestiona-lecciones.json',JSON.stringify(S.lessons,null,2));break;
     case'seek':{if(PL){PL.seek(+b.dataset.t);PL.play()}break}
     case'vresp':{const qq=L.preguntas[i],o=qq.opciones[j];if(S.st.ans[i])return;S.st.ans[i]={j,texto:o?o.texto:'',ok:qq.tipo==='multiple'?!!(o&&o.correcta):null};const el=$('#qc-'+i);if(el)el.outerHTML=qCard(i,false);break}
