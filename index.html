@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cuestiona</title>
+<meta name="description" content="Convierte videos, audios y textos en lecciones interactivas con preguntas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: amable y escolar, como una herramienta de sala de profesores; directa.
+   IDEA: un reproductor de video con marcadores de pregunta sobre su línea de tiempo.
+   PICTURE: el formulario y el editor con su línea de tiempo; arriba, una pantalla con subtítulos y marcadores.
+   COLOUR and TYPE: verde profundo como campo, coral para acciones, amarillo para foco; Nunito 800/900 + Inter.
+   LAYOUT: barra superior, menú lateral (barra inferior en celular, lista para Android), tarjetas. */
+:root{color-scheme:light dark;--bg:light-dark(#f3f6f5,#0f1413);--card:light-dark(#fff,#18201e);--ink:light-dark(#16201d,#e9f0ed);--mute:light-dark(#57665f,#9fb0aa);--line:light-dark(#dce5e1,#2a3531);--soft:light-dark(#ecf2ef,#1f2926);--deep:light-dark(#0f5c4d,#0d4a3f);--deepT:light-dark(#0f5c4d,#7fe0c7);--brand:#ff5b3a;--brand2:#e8462a;--sun:#ffc94d;--ok:light-dark(#0f8a5f,#4fd1a1);--bad:light-dark(#c4362a,#ff8b7d);--r:14px;--sh:0 1px 2px rgba(0,0,0,.05),0 8px 24px -12px rgba(0,0,0,.25)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Nunito,Inter,sans-serif;font-weight:800;line-height:1.08;margin:0 0 .35em;text-wrap:balance}
+h1{font-size:clamp(28px,4vw,44px)}h2{font-size:clamp(20px,2.6vw,26px)}h3{font-size:18px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:60px;padding:0 max(2vw,12px);background:var(--card);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:8px;background:none;border:0;cursor:pointer;padding:6px;border-radius:10px;font:900 24px/1 Nunito,sans-serif;letter-spacing:-.02em}
+.grow{flex:1}.sync{font-size:13px;color:var(--mute);white-space:nowrap}
+.shell{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:calc(100vh - 60px)}
+.side{border-right:1px solid var(--line);background:var(--card);padding:16px 10px;display:flex;flex-direction:column;gap:4px;position:sticky;top:60px;height:calc(100vh - 60px)}
+.side button,.bottom button{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:0;background:none;border-radius:10px;cursor:pointer;text-align:left;font-weight:500}
+.side button:hover{background:var(--soft)}
+.side button.on{background:color-mix(in srgb,var(--deep) 14%,transparent);color:var(--deepT);font-weight:700}
+.side .cnt{margin-left:auto;font-size:12px;background:var(--soft);border-radius:999px;padding:1px 8px;color:var(--mute)}
+.sidefoot{margin-top:auto;font-size:13px;color:var(--mute);padding:10px}
+.bottom{display:none}
+main{padding-bottom:48px}
+.band{padding:clamp(20px,3vw,40px) max(4vw,16px);max-width:1240px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:600;font-size:15px;white-space:nowrap;text-decoration:none;color:inherit}
+.btn:hover{border-color:var(--mute)}
+.btn.brand{background:var(--brand);border-color:var(--brand);color:#fff}.btn.brand:hover{background:var(--brand2)}
+.btn.big{min-height:50px;padding:10px 26px;font-size:16px}
+.btn.ghost{background:transparent}.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.6;cursor:progress}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+label{display:grid;gap:6px;font-weight:600;font-size:14px}
+input,select,textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px;font-weight:400}
+textarea{resize:vertical;line-height:1.45}
+.hint,.meta,.lead{color:var(--mute);font-size:14px;margin:.25em 0 0;font-weight:400}
+.lead{font-size:16px;max-width:64ch}
+.hero{background:var(--deep);color:#fff}
+.hero-in{max-width:1240px;padding:clamp(24px,4vw,48px) max(4vw,16px) 84px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px;align-items:center}
+.hero p{color:#d3ebe4;font-size:17px;max-width:50ch;margin:0}
+.hero svg{width:100%;max-width:460px;height:auto;justify-self:end}
+.gen{max-width:900px;padding:clamp(16px,3vw,28px);display:grid;gap:18px}
+.lift{margin-top:-84px;position:relative}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--soft);padding:5px;border-radius:999px;width:fit-content;max-width:100%}
+.tabs button{border:0;background:none;padding:8px 16px;min-height:40px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--mute)}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:var(--sh)}
+.srcp{display:grid;gap:10px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.chips{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+.chips legend{font-weight:600;font-size:14px;margin-bottom:8px;padding:0}
+.chip{display:inline-block;position:relative}
+.chip input{position:absolute;opacity:0;width:1px;height:1px;min-height:0}
+.chip span{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:6px 14px;border:1.5px solid var(--line);border-radius:999px;cursor:pointer;font-weight:500}
+.chip input:checked+span{border-color:var(--deepT);background:color-mix(in srgb,var(--deep) 12%,transparent)}
+.chip input:focus-visible+span{outline:3px solid var(--sun)}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:end;justify-content:space-between}
+.inline{display:inline-grid}
+.status{min-height:1.4em;font-size:14px;color:var(--mute)}.status.err,.capnote{color:var(--bad)}
+.capnote{font-size:14px;margin:0}.capnote:empty{display:none}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:22px;max-width:900px}
+.how div{padding:14px 16px;border-left:3px solid var(--brand);background:var(--card);border-radius:0 12px 12px 0}
+.how b{display:block;font-family:Nunito,sans-serif;font-size:17px}
+.how span{font-size:14px;color:var(--mute)}
+.edtop{padding:20px max(3vw,16px) 6px;display:grid;gap:4px}
+.title{font:800 clamp(22px,3vw,30px)/1.15 Nunito,sans-serif;border:1px solid transparent;background:transparent;padding:6px 8px;margin-left:-8px}
+.title:hover,.title:focus{border-color:var(--line);background:var(--card)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tl{padding:10px max(3vw,16px) 4px}
+.tlbar{position:relative;height:40px;margin:0 10px}
+.tlbar::before{content:"";position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--line)}
+.mk{position:absolute;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:3px solid var(--card);background:var(--c);cursor:pointer;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.mk::after{content:"";position:absolute;inset:-12px}
+.mk.on{transform:scale(1.35);box-shadow:0 0 0 2px var(--ink)}
+.tlx{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.ed{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;padding:12px max(3vw,16px);align-items:start}
+.events{display:grid;gap:8px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow:auto;padding:3px}
+.evh{display:flex;justify-content:space-between;font-weight:700;padding:0 4px}
+.ev{display:grid;grid-template-columns:1fr auto;gap:4px 8px;text-align:left;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;cursor:pointer}
+.ev.on{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 20%,transparent)}
+.evt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--c)}
+.evtime{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.evq{grid-column:1/-1;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.add{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 4px;font-size:13px;color:var(--mute)}
+.mini{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--c);cursor:pointer;display:grid;place-items:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.qedit{padding:clamp(14px,2.5vw,24px);display:grid;gap:14px}
+.qh{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:700;font-size:14px;align-self:center;width:fit-content}
+.sm input,.sm select{min-height:40px;padding:6px 10px}.tin{width:96px;font-variant-numeric:tabular-nums}
+.qh .danger{margin-left:auto}
+.lbl{font-weight:600;font-size:14px}
+.opts{display:grid;gap:8px}
+.opt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px;border:1.5px solid var(--line);border-radius:12px}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.ck{width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:var(--card);cursor:pointer;font-weight:800;color:#fff}
+.opt.ok .ck{background:var(--ok);border-color:var(--ok)}
+.num{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:var(--soft);font-weight:700}
+.ofields{display:grid;gap:6px}.fb{font-size:14px;min-height:38px;color:var(--mute)}
+.x{width:40px;height:40px;border:0;background:none;font-size:22px;color:var(--mute);cursor:pointer;border-radius:8px}.x:hover{background:var(--soft)}
+.crit{display:grid;grid-template-columns:minmax(0,1fr) 80px auto;gap:8px}
+.resp{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:14px}.resp p{margin:.3em 0 0;font-style:italic}
+.link{color:var(--deepT);font-weight:600}
+.empty{color:var(--mute)}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.lcard{display:grid;grid-template-rows:auto 1fr;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.thumb{background:var(--deep);aspect-ratio:2/1}.thumb.doc{background:#24497f}.thumb.texto{background:#6b4a2e}
+.thumb svg{display:block;width:100%;height:100%}
+.lb{padding:14px;display:grid;gap:4px;align-content:start}
+.lb .acts .btn{min-height:40px;padding:6px 12px;font-size:14px}
+.emptyb,.note{padding:24px;border:2px dashed var(--line);border-radius:var(--r);color:var(--mute);text-align:center}
+.note{border-style:solid;text-align:left;padding:12px 16px;margin:0 0 14px}
+.stu{max-width:780px;margin:0 auto;padding:clamp(20px,3vw,40px) 16px;display:grid;gap:16px}
+.prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.prog i{display:block;height:100%;background:var(--brand);transition:width .3s}
+.watch{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:var(--deep);color:#fff;border-radius:var(--r);padding:16px 18px}
+.watch .btn{background:#fff;color:#0f5c4d;border-color:#fff}
+.sq{padding:clamp(16px,3vw,28px);display:grid;gap:14px}
+.ans{display:grid;gap:10px}
+.ans button{text-align:left;min-height:52px;padding:12px 16px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;font-size:16px}
+.ans button:hover:not(:disabled){border-color:var(--brand)}
+.ans button.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.ans button.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.ans button:disabled{cursor:default;color:inherit}
+.fbk{padding:12px 14px;border-radius:12px;background:var(--soft);font-size:15px}
+.score{font:900 clamp(52px,9vw,80px)/1 Nunito,sans-serif;color:var(--brand)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:600}
+td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.flag{color:var(--bad);font-weight:700}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:.2s;z-index:50;max-width:min(560px,92vw);font-size:15px}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:none;border:0;color:var(--sun);font-weight:700;cursor:pointer;min-height:36px}
+.scroll{overflow-x:auto}
+.play{padding:16px max(2vw,12px) 24px;display:grid;gap:12px;max-width:1500px}
+.play .hrow h2{flex:1;min-width:0}
+.pgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:18px;align-items:start}
+.pv video{display:block;width:100%;max-height:calc(100vh - 230px);background:#000;border-radius:14px}
+.ptl{position:relative;height:30px;margin:8px 10px 0}
+.ptl::before{content:"";position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--line)}
+#pvfill{position:absolute;left:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--brand);width:0}
+.mk.done{opacity:.55}
+.pq{position:sticky;top:72px;max-height:calc(100vh - 90px);overflow:auto;display:grid;gap:10px;align-content:start;padding:2px}
+.pqh{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+#pql{display:grid;gap:10px}
+.qc{background:var(--card);border:1.5px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:14px;display:grid;gap:10px}
+.qc .pill{color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.qc.nueva{animation:entra .45s ease-out;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 35%,transparent)}
+@keyframes entra{from{opacity:0;transform:translateY(-10px)}}
+.qc h3{font-size:18px;margin:0}
+.qch{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tm{border:0;background:var(--soft);border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer;min-height:36px;font-variant-numeric:tabular-nums;color:inherit}
+@media(max-width:900px){.pgrid{grid-template-columns:minmax(0,1fr)}.pq{position:static;max-height:none}.pv video{max-height:50vh}}
+.vbox{position:relative;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;width:100%}
+.vbox iframe,.vbox video,.vbox>div{position:absolute;inset:0;width:100%;height:100%;border:0}
+.pv .vbox{max-height:calc(100vh - 230px)}
+.ed3{display:grid;grid-template-columns:270px minmax(0,1.3fr) minmax(0,1fr);grid-template-areas:"ev mid q";gap:18px;padding:12px max(2vw,14px);align-items:start}
+.ed3 .events{grid-area:ev}.ed3 .qedit{grid-area:q}.edmid{grid-area:mid;position:sticky;top:72px;display:grid;gap:4px}
+.edmid .tl{padding:8px 0 0}
+.head{position:absolute;top:4px;bottom:4px;width:3px;margin-left:-1px;background:var(--ink);border-radius:2px;left:0;pointer-events:none;z-index:1}
+@media(max-width:1200px){.ed3{grid-template-columns:280px minmax(0,1fr);grid-template-areas:"mid mid" "ev q"}.edmid{position:static}}
+@media(max-width:760px){.ed3{grid-template-columns:minmax(0,1fr);grid-template-areas:"mid" "ev" "q"}}
+details summary{cursor:pointer;font-weight:600}details ol{margin:.5em 0 0;padding-left:1.2em}
+@media(max-width:960px){.ed{grid-template-columns:minmax(0,1fr)}.events{position:static;max-height:320px}}
+@media(max-width:760px){
+.shell{grid-template-columns:minmax(0,1fr)}.side{display:none}
+.bottom{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);z-index:30;padding:4px}
+.bottom button{flex-direction:column;gap:2px;font-size:12px;justify-content:center;text-align:center;min-height:56px}
+.bottom button.on{color:var(--brand);font-weight:700}
+main{padding-bottom:96px}.toast{bottom:84px}
+.hero-in{grid-template-columns:minmax(0,1fr);gap:18px}.hero svg{justify-self:center;max-width:360px}
+.sync,.top .long{display:none}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}.opt{grid-template-columns:auto minmax(0,1fr)}.opt .x{grid-column:2;justify-self:end}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top">
+  <button class="logo" data-go="crear" aria-label="Cuestiona, inicio">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 3h18a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H14l-6.5 5v-5H7a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5z" fill="#ff5b3a"/><path d="M13 9.2v10.6l8.6-5.3z" fill="#fff"/><circle cx="25" cy="8" r="2.2" fill="#ffc94d"/></svg>
+    <span>cuestiona</span>
+  </button>
+  <div class="grow"></div>
+  <span id="sync" class="sync"></span>
+  <button class="btn brand" data-go="crear">+ <span class="long">Nueva lección</span></button>
+</header>
+<div class="shell">
+  <nav class="side" aria-label="Menú">
+    <button data-go="crear"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Crear lección</button>
+    <button data-go="lecciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6h7l2 2h9v11H3z"/></svg>Mis lecciones <span class="cnt" id="cnt">0</span></button>
+    <button data-go="corregir"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 7"/></svg>Corregir abiertas</button>
+    <button data-go="ajustes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
+    <p class="sidefoot">Las preguntas las propone la IA a partir del contenido. Revísalas siempre antes de usarlas con tu curso. Tu clave y tus lecciones se guardan solo en este navegador.</p>
+  </nav>
+  <main id="main"></main>
+</div>
+<nav class="bottom" aria-label="Menú">
+  <button data-go="crear"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Crear</button>
+  <button data-go="lecciones"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6h7l2 2h9v11H3z"/></svg>Lecciones</button>
+  <button data-go="corregir"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 7"/></svg>Corregir</button>
+  <button data-go="ajustes"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Ajustes</button>
+</nav>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=s=>{s=Math.max(0,Math.round(+s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+const parseT=v=>{const p=String(v).trim().split(':');if(!p.length||p.some(x=>x===''||isNaN(+x)))return null;return p.map(Number).reduce((a,b)=>a*60+b,0)};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const TIPOS={multiple:{n:'Opción múltiple',c:'#2f6fed',i:'M5 6h14M5 12h14M5 18h9'},abierta:{n:'Pregunta abierta',c:'#7a52e0',i:'M5 5h14v10H10l-5 4z'},encuesta:{n:'Encuesta',c:'#d9488f',i:'M6 18v-7M12 18V6M18 18v-4'},reflexion:{n:'Reflexión',c:'#e9702a',i:'M12 3a6 6 0 0 1 3.5 10.9V17h-7v-3.1A6 6 0 0 1 12 3zM9.5 21h5'},nota:{n:'Nota',c:'#4a5a54',i:'M6 3h9l3 3v15H6zM9 10h6M9 14h6'}};
+const ico=(k,sz=18)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${(TIPOS[k]||TIPOS.nota).i}"/></svg>`;
+const NIVELES=['Recordar','Comprender','Aplicar','Analizar','Evaluar','Crear'];
+const TODOS=['multiple','abierta','encuesta','reflexion'];
+const S={view:'crear',src:'yt',form:{tipos:TODOS.slice(),n:'auto',asr:true,ocr:true,lang:'spanish'},pdfFile:null,vidFile:null,media:{},lessons:[],cur:null,sel:0,busy:false,status:'',statusErr:false,dbOK:null,col:null,st:null,grade:null,undo:null,capReady:false};
+let cap={};
+
+/* ---------- utilidades ---------- */
+let tT;
+function toast(m,btn){const t=$('#toast');t.innerHTML=`<span>${esc(m)}</span>${btn?`<button data-act="${esc(btn.act)}">${esc(btn.label)}</button>`:''}`;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),btn?7000:3800)}
+function copiar(text,msg){if(!navigator.clipboard){toast('Tu navegador no permite copiar aquí.');return}navigator.clipboard.writeText(text).then(()=>toast(msg||'Copiado.'),()=>toast('No se pudo copiar.'))}
+async function bajar(name,data){if(!cap.downloads){copiar(data,'No se puede descargar aquí; lo copié al portapapeles.');return}
+  try{await cap.downloads.save({filename:name,data})}catch(e){const c=e&&e.code;if(c==='declined')return;if(c==='host_unavailable')toast('Esta app no puede guardar archivos. Ábrela en el navegador o usa Copiar.');else if(c==='rate_limited')toast('Espera un momento y vuelve a intentar.');else toast('No se pudo descargar ('+(c||'error')+').')}}
+const cell=c=>{c=String(c??'');return/[";\n\r]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c};
+const csv=rows=>'﻿'+rows.map(r=>r.map(cell).join(';')).join('\r\n');
+const tsv=rows=>rows.map(r=>r.map(c=>String(c??'').replace(/[\t\r\n]+/g,' ')).join('\t')).join('\n');
+const slug=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50)||'leccion';
+function parseJSON(t){t=String(t||'');const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)return null;try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}}
+const ytId=u=>{u=String(u||'').trim();const m=u.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);return m?m[1]:(/^[A-Za-z0-9_-]{11}$/.test(u)?u:null)};
+const ubic=(q,L=S.cur)=>L&&L.modo==='video'?fmt(q.t):L&&L.modo==='doc'?'p. '+q.t:'Sección '+q.t;
+function setSync(msg){const el=$('#sync');if(!el)return;el.textContent=msg||(S.dbOK===true?'Guardado en este navegador':S.dbOK===false?'Sin guardado: solo esta sesión':S.dbOK==='lento'?'Conectando…':'')}
+function updCount(){const c=$('#cnt');if(c)c.textContent=S.lessons.length}
+function sampleMsg(e){if(e&&e.message)return e.message;const c=e&&e.code;return c==='not_granted'?'Debes permitir que la app use la IA de Claude.':c==='rate_limited'?'Muchas solicitudes seguidas. Espera un minuto y vuelve a intentar.':'La IA no respondió'+(c?' ('+c+')':'')+'. Vuelve a intentar.'}
+function mcpMsg(e){const c=e&&e.code;switch(c){
+  case'server_not_connected':return'No encuentro tu conector Firecrawl. Agrégalo en claude.ai → Ajustes → Conectores, o pega la transcripción en "Texto o transcripción".';
+  case'needs_reauth':return'Firecrawl necesita reconectarse en claude.ai → Ajustes → Conectores.';
+  case'approval_required':case'not_in_manifest':return'Debes permitir que la app use Firecrawl. Vuelve a tocar "Generar" y acepta el permiso.';
+  case'blocked_by_policy':return'Tu organización bloquea esta herramienta de Firecrawl.';
+  case'tool_error':return'Firecrawl respondió con un error: '+String(e.message||'').slice(0,160);
+  case'server_unavailable':case'upstream_error':return'Firecrawl no respondió. Intenta de nuevo en un momento.';
+  default:return'No se pudo obtener la transcripción'+(c?' ('+c+')':'')+'. Puedes pegarla a mano.'}}
+
+/* ---------- capacidades y guardado ---------- */
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
+const MODELOS=[['claude-sonnet-5-5','Claude Sonnet 5.5 (recomendado)'],['claude-opus-5-5','Claude Opus 5.5 (más capaz, más caro)'],['claude-haiku-5-5','Claude Haiku 5.5 (más rápido y barato)']];
+const CFG=Object.assign({key:'',model:'claude-sonnet-5-5'},LS.get('cuestiona.cfg',{}));
+const guardarCfg=()=>LS.set('cuestiona.cfg',CFG);
+const blob64=b=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=()=>ko(r.error);r.readAsDataURL(b)});
+function apiMsg(st,m){return st===401?'La clave de API no es válida. Revísala en Ajustes.':st===403?'Tu clave no tiene permiso para este modelo.':st===404?'El modelo elegido no está disponible para tu cuenta. Cambia el modelo en Ajustes.':st===429?'Llegaste al límite de uso de tu cuenta de API. Espera un momento o revisa tu saldo en console.anthropic.com.':st===529||st>=500?'El servicio de Claude está ocupado. Intenta de nuevo en un momento.':'Error de la API ('+st+')'+(m?': '+m:'')}
+async function claudeAPI(prompt,o={}){if(!CFG.key)throw Object.assign(new Error('Falta tu clave de API de Anthropic. Agrégala en Ajustes.'),{code:'no_key'});
+  const content=[];for(const b of(o.images||[]))content.push({type:'image',source:{type:'base64',media_type:b.type||'image/jpeg',data:await blob64(b)}});content.push({type:'text',text:prompt});
+  let r;try{r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':CFG.key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:CFG.model,max_tokens:o.maxTokens||16000,stream:true,messages:[{role:'user',content}]})})}
+  catch(e){throw new Error('No hay conexión con la API de Claude. Revisa tu internet.')}
+  if(!r.ok){let m='';try{const j=await r.json();m=j&&j.error&&j.error.message||''}catch(e){}throw Object.assign(new Error(apiMsg(r.status,m)),{code:'api_'+r.status})}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',text='',stop='';
+  for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+    while((i=buf.indexOf('\n\n'))>=0){const ev=buf.slice(0,i);buf=buf.slice(i+2);const line=ev.split('\n').find(l=>l.startsWith('data:'));if(!line)continue;let d;try{d=JSON.parse(line.slice(5))}catch(e){continue}
+      if(d.type==='content_block_delta'&&d.delta&&d.delta.type==='text_delta'){text+=d.delta.text;if(o.onText)o.onText({text})}
+      else if(d.type==='message_delta'&&d.delta&&d.delta.stop_reason)stop=d.delta.stop_reason;
+      else if(d.type==='error')throw new Error('Error de la API: '+(d.error&&d.error.message||'desconocido'))}}
+  if(!text.trim())throw new Error('La IA no devolvió texto. Vuelve a intentarlo.');return{text,truncated:stop==='max_tokens'}}
+const sampleFn=(p,o)=>claudeAPI(p,o||{});
+sampleFn.json=async(p,o)=>{const r=await claudeAPI(p,o||{});const j=parseJSON(r.text);if(!j)throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');return j};
+sampleFn.limits=async()=>({images:{maxCount:12}});
+cap={sample:sampleFn,mcp:null,downloads:{save:async({filename,data})=>{const b=data instanceof Blob?data:new Blob([data],{type:/\.json$/.test(filename)?'application/json':/\.csv$/.test(filename)?'text/csv;charset=utf-8':'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);return{status:'saved'}}}};
+S.capReady=true;
+function initDB(){S.lessons=(LS.get('cuestiona.lessons',[])||[]).filter(x=>x&&x.id&&Array.isArray(x.preguntas)).sort((a,b)=>(b.creada||0)-(a.creada||0));S.dbOK=true;updCount();setSync()}
+function persist(){if(!LS.set('cuestiona.lessons',S.lessons))setSync('No se pudo guardar: el navegador no tiene espacio');}
+function upsertLocal(L){const c=clone(L),i=S.lessons.findIndex(x=>x.id===L.id);if(i>=0)S.lessons[i]=c;else S.lessons.unshift(c);updCount()}
+let saveT=null,saving=Promise.resolve();
+function dirty(){if(!S.cur)return;clearTimeout(saveT);setSync('Guardando…');saveT=setTimeout(saveNow,1200)}
+function saveNow(){clearTimeout(saveT);const L=S.cur;if(!L)return;if(!S.col){upsertLocal(L);persist();setSync('Guardado');return}
+  const body=clone(L);delete body.id;
+  saving=saving.then(()=>S.col.doc(L.id).set(body)).then(()=>setSync('Guardado'),e=>{const c=e&&e.code;setSync(c==='quota_exceeded'?'Sin espacio para guardar':'No se pudo guardar');upsertLocal(L)})}
+function borrarLeccion(id){idb.del(id);if(S.media[id]){try{URL.revokeObjectURL(S.media[id])}catch(e){}delete S.media[id]}if(S.col)S.col.doc(id).delete().catch(()=>toast('No se pudo borrar.'));else{S.lessons=S.lessons.filter(x=>x.id!==id);updCount()}
+  if(S.cur&&S.cur.id===id)S.cur=null;S.lessons=S.lessons.filter(x=>x.id!==id);persist();updCount();render();toast('Lección borrada.')}
+function abrir(id){const x=S.lessons.find(l=>l.id===id)||(S.cur&&S.cur.id===id?S.cur:null);if(!x)return false;S.cur=clone(x);S.sel=0;return true}
+
+/* ---------- navegación ---------- */
+function go(v){S.view=v;render();window.scrollTo(0,0)}
+function render(){document.querySelectorAll('.side [data-go],.bottom [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===S.view||(S.view==='editor'||S.view==='estudiante')&&b.dataset.go==='lecciones'));
+  const f={crear:vCrear,lecciones:vLecciones,editor:vEditor,estudiante:vEstudiante,corregir:vCorregir,ajustes:vAjustes}[S.view]||vCrear;destruirPlayer();if(S.view!=='editor')S.edChecked=false;$('#main').innerHTML=f();if(S.view==='crear')capNote();if(S.view==='estudiante')bindPlayer();if(S.view==='editor')bindEditorPlayer()}
+const vacio=()=>`<section class="band"><div class="emptyb">No hay ninguna lección abierta.<br><br><button class="btn" data-go="lecciones">Ver mis lecciones</button></div></section>`;
+
+/* ---------- vista: crear ---------- */
+function heroArt(){return`<svg viewBox="0 0 460 300" role="img" aria-label="Video con preguntas en su línea de tiempo">
+<rect x="18" y="16" width="370" height="214" rx="18" fill="#093b31"/><rect x="18" y="16" width="370" height="214" rx="18" fill="none" stroke="#2c8a75" stroke-width="2"/>
+<path d="M18 160 Q110 110 200 150 T388 130 V212 a18 18 0 0 1-18 18H36a18 18 0 0 1-18-18z" fill="#0d4a3f"/>
+<circle cx="190" cy="104" r="36" fill="#ff5b3a"/><path d="M178 86v36l30-18z" fill="#fff"/>
+<rect x="70" y="182" width="240" height="12" rx="6" fill="#fff" opacity=".85"/><rect x="104" y="202" width="172" height="12" rx="6" fill="#fff" opacity=".55"/>
+<line x1="30" y1="262" x2="376" y2="262" stroke="#2c8a75" stroke-width="8" stroke-linecap="round"/><line x1="30" y1="262" x2="160" y2="262" stroke="#ff5b3a" stroke-width="8" stroke-linecap="round"/>
+<circle cx="30" cy="262" r="9" fill="#d9488f" stroke="#0f5c4d" stroke-width="3"/><circle cx="104" cy="262" r="9" fill="#2f6fed" stroke="#0f5c4d" stroke-width="3"/><circle cx="160" cy="262" r="13" fill="#ffc94d" stroke="#0f5c4d" stroke-width="3"/><circle cx="248" cy="262" r="9" fill="#7a52e0" stroke="#0f5c4d" stroke-width="3"/><circle cx="350" cy="262" r="9" fill="#e9702a" stroke="#0f5c4d" stroke-width="3"/>
+<g transform="translate(258 104)"><rect x="4" y="8" width="190" height="146" rx="16" fill="#000" opacity=".22"/><rect width="190" height="146" rx="16" fill="#fff"/>
+<rect x="16" y="16" width="120" height="10" rx="5" fill="#16201d"/><rect x="16" y="32" width="86" height="10" rx="5" fill="#16201d"/>
+<rect x="16" y="56" width="158" height="22" rx="8" fill="#eef3f1"/><rect x="16" y="84" width="158" height="22" rx="8" fill="#dff5ec" stroke="#0f8a5f" stroke-width="2"/><rect x="16" y="112" width="158" height="22" rx="8" fill="#eef3f1"/>
+<circle cx="30" cy="95" r="6" fill="#0f8a5f"/><path d="M27 95l2 2 4-4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<rect x="42" y="63" width="90" height="8" rx="4" fill="#9fb0aa"/><rect x="42" y="91" width="110" height="8" rx="4" fill="#0f8a5f" opacity=".7"/><rect x="42" y="119" width="70" height="8" rx="4" fill="#9fb0aa"/></g>
+</svg>`}
+function vCrear(){const s=S.src,f=S.form;return`
+<section class="hero"><div class="hero-in"><div><h1>Convierte un video en una clase que pregunta</h1>
+<p>Pega un video de YouTube, sube un video, un audio o un PDF, o pega un texto. La IA lee todo el contenido y pone preguntas justo después de cada momento clave, con respuestas y pauta.</p></div>${heroArt()}</div></section>
+<section class="band"><form class="card gen lift" id="gen" novalidate>
+<div class="tabs" role="tablist" aria-label="Fuente">${[['yt','Video de YouTube'],['vid','Subir video o audio'],['pdf','PDF'],['txt','Texto o transcripción']].map(([k,n])=>`<button type="button" role="tab" aria-selected="${k===s}" data-act="src" data-k="${k}">${n}</button>`).join('')}</div>
+<div class="srcp">${s==='yt'?`<label>Enlace del video<input id="f-url" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" value="${esc(f.url)}"></label>
+<label>Transcripción del video (con sus tiempos)<textarea id="f-ytx" rows="7" placeholder="0:00&#10;Hola, hoy vamos a ver…&#10;0:12&#10;…">${esc(f.ytx)}</textarea></label>
+<details class="hint"><summary>¿Cómo copio la transcripción de YouTube?</summary><ol><li>Abre el video en YouTube, en el computador.</li><li>Bajo el video, en la descripción, toca <b>…más</b> y luego <b>Mostrar transcripción</b>.</li><li>Selecciona todo el texto de la transcripción (con los tiempos), cópialo y pégalo aquí.</li></ol></details>
+<p class="hint">El video se verá dentro de Cuestiona. Si el video no tiene transcripción, usa "Subir video o audio" con el archivo.</p>`
+:s==='vid'?`<label>Archivo de video o audio<input id="f-vid" type="file" accept="video/*,audio/*"></label>${S.vidFile?`<p class="hint">Seleccionado: ${esc(S.vidFile.name)} (${(S.vidFile.size/1e6).toFixed(1)} MB)</p>`:''}
+<fieldset class="chips"><legend>Qué analizar</legend><label class="chip"><input type="checkbox" id="f-asr" ${f.asr?'checked':''}><span>Audio a texto (Whisper)</span></label><label class="chip"><input type="checkbox" id="f-ocr" ${f.ocr?'checked':''}><span>Texto en pantalla</span></label></fieldset>
+<label class="inline">Idioma que se habla<select id="f-lang">${[['spanish','Español'],['english','Inglés'],['french','Francés'],['italian','Italiano'],['portuguese','Portugués'],['auto','Detectar solo']].map(([v,n])=>`<option value="${v}" ${f.lang===v?'selected':''}>${n}</option>`).join('')}</select></label>
+<p class="hint">El audio se pasa a texto en tu propio equipo con Whisper. La primera vez descarga el modelo (unos 100 MB, después queda guardado) y luego tarda más o menos lo que dura el video. Máximo 20 minutos de audio por archivo. El texto en pantalla lo lee la IA a partir de imágenes tomadas del video. El video queda guardado en este navegador para reproducir la lección con las preguntas al lado.</p>
+<div class="row" style="align-items:center;justify-content:flex-start"><button type="button" class="btn" data-act="prep">Preparar Whisper</button><span class="meta" id="prepst">${esc(S.prep||'Opcional: descarga y prueba el modelo antes de usarlo.')}</span></div>
+<label>Enlace de YouTube del mismo video (opcional)<input id="f-url3" type="url" inputmode="url" placeholder="https://youtu.be/…" value="${esc(f.url3)}"></label>`
+:s==='pdf'?`<label>Archivo PDF<input id="f-pdf" type="file" accept="application/pdf,.pdf"></label>${S.pdfFile?`<p class="hint">Seleccionado: ${esc(S.pdfFile.name)}</p>`:''}<p class="hint">Se lee el texto de cada página (hasta 80). Un PDF escaneado como foto no tiene texto que leer.</p>`
+:`<label>Texto<textarea id="f-txt" rows="8" placeholder="Pega un texto, una guía o la transcripción de YouTube (en YouTube: Más → Mostrar transcripción). Si trae tiempos como 1:05, se usan para ubicar las preguntas.">${esc(f.txt)}</textarea></label><label>Enlace del video (opcional, para la vista estudiante)<input id="f-url2" type="url" inputmode="url" placeholder="https://youtu.be/…" value="${esc(f.url2)}"></label>`}</div>
+<p class="capnote" id="capnote"></p>
+<div class="grid2"><label>Curso y nivel<input id="f-curso" placeholder="Ej.: 3° medio TP Gastronomía" value="${esc(f.curso)}"></label><label>Tema o asignatura (opcional)<input id="f-tema" placeholder="Ej.: Higiene en la elaboración de alimentos" value="${esc(f.tema)}"></label></div>
+<fieldset class="chips"><legend>Tipos de pregunta</legend>${TODOS.map(k=>`<label class="chip"><input type="checkbox" name="tipo" value="${k}" ${f.tipos.includes(k)?'checked':''}><span style="color:inherit">${ico(k,16)} ${TIPOS[k].n}</span></label>`).join('')}</fieldset>
+<div class="row"><label class="inline">Cantidad<select id="f-n">${['auto','4','6','8','10','12'].map(v=>`<option value="${v}" ${f.n===v?'selected':''}>${v==='auto'?'Automática':v+' preguntas'}</option>`).join('')}</select></label>
+<button class="btn brand big" id="go" ${S.busy?'disabled':''}>${S.busy?'Generando…':'Generar preguntas'}</button></div>
+<div id="status" class="status ${S.statusErr?'err':''}" aria-live="polite">${esc(S.status)}</div></form>
+<div class="how"><div><b>1. Lee el contenido</b><span>Usa los subtítulos o pasa el audio a texto con Whisper, lee el texto en pantalla o el texto de cada página.</span></div><div><b>2. Ubica momentos clave</b><span>Cada pregunta va justo después de la parte que la respalda.</span></div><div><b>3. Tú revisas</b><span>Editas, corriges y la usas en clase o la exportas.</span></div></div></section>`}
+function capNote(){const el=$('#capnote');if(!el||!S.capReady)return;let m='';
+  if(!CFG.key)m='Falta tu clave de API de Anthropic: agrégala en Ajustes para que la IA pueda crear preguntas.';
+  el.textContent=m}
+function status(m,err){S.status=m;S.statusErr=!!err;const el=$('#status');if(el){el.textContent=m;el.classList.toggle('err',!!err)}}
+
+/* ---------- obtener contenido ---------- */
+function agrupar(segs){const out=[];let cur=null;for(const s of segs){const x=String(s.x||'').replace(/\s+/g,' ').trim();if(!x)continue;if(!cur||s.t-cur.t>=20){cur={t:s.t,x:[]};out.push(cur)}cur.x.push(x)}return out.map(b=>`[${fmt(b.t)}] ${b.x.join(' ')}`).join('\n')}
+function buscarTranscripcion(root){const res={segments:[],kind:'',error:''},seen=new Set();
+  const walk=(n,d)=>{if(d>10||n==null)return;
+    if(typeof n==='string'){const s=n.trim();if((s[0]==='{'||s[0]==='[')&&s.length<8e6){try{walk(JSON.parse(s),d+1)}catch(e){}}return}
+    if(typeof n!=='object'||seen.has(n))return;seen.add(n);
+    if(Array.isArray(n)){if(!res.segments.length&&n.length&&n[0]&&typeof n[0]==='object'&&'start_ms'in n[0]&&'text'in n[0])res.segments=n;else n.forEach(x=>walk(x,d+1));return}
+    if(Array.isArray(n.segments)&&n.segments.length&&!res.segments.length&&n.segments[0]&&'start_ms'in n.segments[0]){res.segments=n.segments;if(typeof n.kind==='string')res.kind=n.kind}
+    if(n.has_transcript===false&&!res.error)res.error='sin subtítulos';
+    if(n.error&&!res.error)res.error=typeof n.error==='string'?n.error:String(n.error.code||n.error.message||'error');
+    for(const k in n)if(k!=='segments')walk(n[k],d+1)};
+  walk(root,0);if(res.segments.length)res.error='';return res}
+function desdeTexto(txt,url){txt=String(txt||'').trim();if(txt.length<80)throw new Error('Pega un texto más largo (al menos un párrafo).');
+  const re=/^\s*\[?((?:\d{1,2}:)?\d{1,2}:\d{2})\]?\s*(.*)$/,segs=[];let cur=null;
+  for(const line of txt.split(/\r?\n/)){const m=line.match(re);if(m){cur={t:parseT(m[1]),x:m[2]||''};segs.push(cur)}else if(cur&&line.trim())cur.x+=(cur.x?' ':'')+line.trim()}
+  const id=ytId(url)||'',u=id?'https://www.youtube.com/watch?v='+id:'';
+  if(segs.length>=3){const L=segs[segs.length-1];return{modo:'video',videoId:id,url:u,duracion:Math.ceil(L.t+8),kind:'pegada',texto:agrupar(segs)}}
+  const par=txt.split(/\n\s*\n/).map(p=>p.replace(/\s+/g,' ').trim()).filter(Boolean);
+  return{modo:'texto',videoId:id,url:u,secciones:par.length,texto:par.map((p,i)=>`[Sección ${i+1}] ${p}`).join('\n')}}
+let pdfP=null;
+function cargarPdfjs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);if(pdfP)return pdfP;
+  const base='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',add=src=>new Promise((ok,ko)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>ko(new Error('No se pudo cargar el lector de PDF.'));document.head.appendChild(s)});
+  pdfP=add(base+'pdf.worker.min.js').then(()=>add(base+'pdf.min.js')).then(()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+'pdf.worker.min.js';return window.pdfjsLib}).catch(e=>{pdfP=null;throw e});return pdfP}
+async function desdePDF(file){if(!file)throw new Error('Elige un archivo PDF.');status('Leyendo el PDF…');const lib=await cargarPdfjs();
+  const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[],n=Math.min(doc.numPages,80);
+  for(let p=1;p<=n;p++){const c=await(await doc.getPage(p)).getTextContent();const t=c.items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();if(t)out.push(`[p. ${p}] ${t}`)}
+  if(!out.length)throw new Error('El PDF no tiene texto seleccionable (parece escaneado). Pega el texto a mano.');
+  return{modo:'doc',nombre:file.name.replace(/\.pdf$/i,''),paginas:n,texto:out.join('\n')}}
+
+/* ---------- archivo de video o audio: Whisper + lectura de pantalla ---------- */
+let asrP=null;
+function cargarWhisper(onProg){if(asrP)return asrP;asrP=(async()=>{
+  if(typeof WebAssembly!=='object')throw new Error('Este navegador no puede ejecutar Whisper.');
+  const T=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js');const{env,pipeline}=T;
+  env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;
+  return pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:{encoder_model:'q8',decoder_model_merged:'q8'},device:'wasm',progress_callback:onProg})})().catch(e=>{asrP=null;throw e});return asrP}
+async function audio16k(file){status('Extrayendo el audio…');const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error('Este navegador no puede leer audio.');
+  const ac=new AC();let ab;try{ab=await ac.decodeAudioData(await file.arrayBuffer())}catch(e){throw new Error('No pude leer el audio de este archivo. Prueba con MP4, MP3, M4A o WEBM.')}finally{try{ac.close()}catch(e){}}
+  if(ab.duration>20*60+5)throw new Error('Para pasar el audio a texto el archivo debe durar 20 minutos o menos. Córtalo en partes o desmarca "Audio a texto".');
+  const oac=new OfflineAudioContext(1,Math.ceil(ab.duration*16000),16000),src=oac.createBufferSource();src.buffer=ab;src.connect(oac.destination);src.start();return(await oac.startRendering()).getChannelData(0)}
+const RUIDO=/amara\.org|subt[ií]tulos (realizados|por|creados)|gracias por ver|suscr[ií]bete/i;
+async function transcribir(file,lang){const a=await audio16k(file),dur=a.length/16000;
+  status('Preparando Whisper…');
+  const asr=await cargarWhisper(p=>{if(p&&p.status==='progress'&&p.total>5e6)status(`Descargando Whisper (solo la primera vez)… ${Math.round(p.progress||0)}%`)});
+  const W=30*16000,n=Math.ceil(a.length/W),segs=[];
+  for(let i=0;i<n;i++){const part=a.subarray(i*W,Math.min(a.length,(i+1)*W));if(part.length<8000)break;
+    let e=0;for(let k=0;k<part.length;k+=16)e+=part[k]*part[k];if(Math.sqrt(e/(part.length/16))<0.004)continue;
+    status(`Pasando el audio a texto… ${fmt(i*30)} de ${fmt(dur)}`);
+    const opt={return_timestamps:true,task:'transcribe'};if(lang&&lang!=='auto')opt.language=lang;
+    const out=await asr(part,opt);const ch=out&&out.chunks&&out.chunks.length?out.chunks:[{timestamp:[0,30],text:out&&out.text}];
+    for(const c of ch){const x=String(c.text||'').trim();if(x&&!RUIDO.test(x))segs.push({t:i*30+((c.timestamp&&c.timestamp[0])||0),k:'voz',x})}}
+  return{segs,dur}}
+const esperar=(el,ev,ms)=>new Promise((ok,ko)=>{const t=setTimeout(()=>ko(new Error('tiempo')),ms);el.addEventListener(ev,()=>{clearTimeout(t);ok()},{once:true});el.addEventListener('error',()=>{clearTimeout(t);ko(new Error('formato'))},{once:true})});
+async function leerPantalla(url,dur){
+  const lim=await cap.sample.limits().catch(()=>null);if(!lim||!lim.images){toast('No se pudo leer el texto en pantalla desde esta vista; se usará solo el audio.');return[]}
+  status('Tomando imágenes del video…');const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=url;
+  try{await esperar(v,'loadeddata',20000)}catch(e){throw new Error('El navegador no puede abrir este video. Prueba con un archivo MP4.')}
+  if(!dur||!isFinite(dur))dur=v.duration;if(!dur||!isFinite(dur))throw new Error('No pude saber cuánto dura el video.');
+  const step=Math.max(4,dur/80),c=document.createElement('canvas'),sm=document.createElement('canvas');sm.width=32;sm.height=18;
+  const sx=sm.getContext('2d',{willReadFrequently:true});let prev=null;const fr=[];
+  for(let t=Math.min(1,dur/2);t<dur;t+=step){v.currentTime=t;try{await esperar(v,'seeked',8000)}catch(e){continue}
+    sx.drawImage(v,0,0,32,18);const d=sx.getImageData(0,0,32,18).data,g=new Float32Array(576);for(let i=0;i<576;i++)g[i]=(d[i*4]+d[i*4+1]+d[i*4+2])/3;
+    let diff=255;if(prev){diff=0;for(let i=0;i<576;i++)diff+=Math.abs(g[i]-prev[i]);diff/=576}
+    if(diff>7){const w=Math.min(1280,v.videoWidth||1280);c.width=w;c.height=Math.round(w*((v.videoHeight||720)/(v.videoWidth||1280)));c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+      const b=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));if(b)fr.push({t,blob:b});prev=g}
+    status(`Tomando imágenes del video… ${fmt(t)} de ${fmt(dur)}`)}
+  v.removeAttribute('src');v.load();
+  let sel=fr;const MAX=36;if(fr.length>MAX)sel=Array.from({length:MAX},(_,i)=>fr[Math.round(i*(fr.length-1)/(MAX-1))]);
+  const per=Math.max(1,Math.min(lim.images.maxCount||8,12)),res=[];
+  for(let b=0;b<sel.length;b+=per){const lote=sel.slice(b,b+per);status(`La IA está leyendo el texto en pantalla… ${Math.min(b+per,sel.length)} de ${sel.length} imágenes`);
+    const p=`Recibes ${lote.length} imágenes tomadas de un video educativo, en este orden: ${lote.map((f,i)=>`imagen ${i+1} = ${fmt(f.t)}`).join(', ')}.
+Para cada imagen devuelve:
+- "texto": transcripción literal de TODO el texto legible en pantalla (títulos, subtítulos incrustados, carteles, ingredientes, cantidades, temperaturas, tiempos, etiquetas). Respeta números y unidades. Si no hay texto, "". Si una parte no se lee con claridad, escribe [ilegible]; no la adivines.
+- "escena": máximo 12 palabras sobre la acción u objeto principal (ej.: "corta cebolla en cubos sobre tabla verde"). No describas rasgos de personas ni intentes identificarlas.
+Responde SOLO con JSON: {"imagenes":[{"n":1,"texto":"","escena":""}]}`;
+    let j;try{j=await cap.sample.json(p,{images:lote.map(f=>f.blob),modelTier:'default'})}catch(e){if(e&&e.code==='images_unavailable'){toast('Esta vista no permite enviar imágenes; se usará solo el audio.');return res}throw new Error(sampleMsg(e))}
+    for(const it of(j&&Array.isArray(j.imagenes)?j.imagenes:[])){const f=lote[(parseInt(it.n,10)||0)-1];if(!f)continue;
+      const tx=String(it.texto||'').trim(),es=String(it.escena||'').trim();
+      if(tx&&!res.some(r=>r.k==='pantalla'&&r.x===tx))res.push({t:f.t,k:'pantalla',x:tx});if(es)res.push({t:f.t,k:'se ve',x:es})}}
+  return res}
+async function desdeArchivo(file,f){if(!file)throw new Error('Elige un archivo de video o audio.');if(!f.asr&&!f.ocr)throw new Error('Marca al menos una opción: audio a texto o texto en pantalla.');
+  const isAudio=/^audio\//.test(file.type)||/\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(file.name);if(isAudio&&!f.asr)throw new Error('Un archivo de audio no tiene pantalla: marca "Audio a texto".');
+  const url=URL.createObjectURL(file);let lines=[],dur=0;
+  if(f.asr){const r=await transcribir(file,f.lang);lines=lines.concat(r.segs);dur=r.dur}
+  if(f.ocr&&!isAudio)lines=lines.concat(await leerPantalla(url,dur));
+  if(!dur){const m=document.createElement(isAudio?'audio':'video');m.preload='metadata';m.src=url;try{await esperar(m,'loadedmetadata',15000);dur=m.duration}catch(e){}}
+  if(!lines.length)throw new Error('No se encontró voz ni texto en pantalla en este archivo.');
+  lines.sort((a,b)=>a.t-b.t);const id=ytId(f.url3)||'';
+  return{modo:'video',local:true,mediaUrl:url,videoId:id,url:id?'https://www.youtube.com/watch?v='+id:'',duracion:Math.ceil(dur||lines[lines.length-1].t+5),kind:f.asr?'whisper':'pantalla',nombre:file.name.replace(/\.[^.]+$/,''),texto:lines.map(l=>`[${fmt(l.t)}] (${l.k}) ${l.x.replace(/\s+/g,' ')}`).join('\n')}}
+
+/* ---------- IA: generar ---------- */
+function promptGen(F,f,tipos){
+  const fuente=F.local?`Contenido de un video subido por el docente, en líneas con tiempo [m:ss]. "(voz)" = audio pasado a texto con Whisper (puede tener palabras o nombres mal escritos: corrígelos solo si es evidente por el contexto); "(pantalla)" = texto escrito que aparece en el video; "(se ve)" = breve descripción de la acción visible. Duración: ${fmt(F.duracion)}.`:F.modo==='video'?`Transcripción de un video${F.kind==='asr'?' (subtítulos automáticos: pueden traer palabras mal escritas)':''}, en bloques con tiempo [m:ss]. Duración: ${fmt(F.duracion)}.`:F.modo==='doc'?`Texto de un PDF${F.nombre?' llamado "'+F.nombre+'"':''}, marcado por página [p. N]. Páginas: ${F.paginas}.`:`Texto dividido en secciones [Sección N]. Secciones: ${F.secciones}.`;
+  const unidad=F.modo==='video'?'segundos desde el inicio del video (número entero)':F.modo==='doc'?'número de página':'número de sección';
+  const cant=f.n&&f.n!=='auto'?f.n+' preguntas en total, contando encuestas':F.modo==='video'?'automática: 1 pregunta cada 1 a 2 minutos de video, mínimo 4 y máximo 12, contando encuestas':'automática: entre 4 y 10 según el largo';
+  return`Eres "Cuestiona", un asistente que convierte contenidos en lecciones interactivas para docentes. Lees todo el contenido, detectas los momentos clave y pones preguntas en esos puntos.
+
+DATOS
+- Fuente: ${fuente}
+- Curso y nivel: ${f.curso||'no indicado (usa lenguaje de enseñanza media)'}
+- Tema: ${f.tema||'el de la fuente'}
+- Tipos pedidos: ${tipos.map(k=>TIPOS[k].n).join(', ')}
+- Cantidad: ${cant}
+
+REGLAS
+1. Escribe TODO en español de Chile, claro y con frases cortas, aunque la fuente esté en otro idioma.
+2. Usa solo información que aparece en la fuente. Cada pregunta lleva "respaldo": una cita breve y literal de la fuente (máximo 25 palabras) y su "ubicacion". Si no hay respaldo, no hagas esa pregunta. No inventes datos ni detalles de lo que se ve.
+3. Campo "t" = ${unidad}.${F.modo==='video'?' Pon cada pregunta justo al terminar el fragmento que la respalda, nunca antes de que se explique. No uses los últimos 2 segundos, salvo la pregunta final.':''}
+4. ${tipos.includes('encuesta')?'Incluye una encuesta al inicio (t = 0): "¿Cuánto sabes de este tema?", y otra cerca del final: "¿Cuánto aprendiste con este contenido?". Ambas con 4 opciones de escala, sin respuesta correcta.':'No incluyas encuestas.'}
+5. ${tipos.includes('reflexion')?'Termina con una pregunta de reflexión que conecte el contenido con la práctica del curso o del oficio.':'No incluyas preguntas de reflexión.'}
+6. Opción múltiple: 4 alternativas, una sola correcta, distractores creíbles basados en errores típicos y una retroalimentación breve en cada alternativa. Cambia la posición de la correcta y que no sea siempre la más larga.
+7. Abiertas y reflexión: "esperada" (respuesta modelo) y de 2 a 4 criterios con puntaje.
+8. Al menos un tercio de las preguntas en nivel Aplicar, Analizar o Evaluar. Nada trivial ni sobre detalles sin importancia.
+9. Explica entre paréntesis los términos técnicos la primera vez que aparezcan.
+10. Usa solo los tipos pedidos.
+
+FORMATO: responde SOLO con JSON válido, sin texto antes ni después:
+{"titulo":"título corto de la lección","resumen":"1 o 2 frases sobre de qué trata","preguntas":[{"t":0,"tipo":"multiple|abierta|encuesta|reflexion","enunciado":"","opciones":[{"texto":"","correcta":false,"feedback":""}],"esperada":"","criterios":[{"criterio":"","puntos":2}],"respaldo":"cita literal","ubicacion":"m:ss o p. N","nivel":"Recordar|Comprender|Aplicar|Analizar|Evaluar|Crear"}]}
+En abiertas y reflexión usa "opciones":[]. En encuestas no marques correctas.
+
+FUENTE
+${F.texto.slice(0,90000)}`}
+function ajustarTipo(q){
+  if(q.tipo==='multiple'&&q.opciones.length<2)q.opciones=Array.from({length:4},(_,i)=>({texto:'',correcta:i===0,feedback:''}));
+  if(q.tipo==='encuesta'){if(q.opciones.length<2)q.opciones=['Nada','Poco','Bastante','Mucho'].map(t=>({texto:t,correcta:false,feedback:''}));q.opciones.forEach(o=>{o.correcta=false})}
+  if((q.tipo==='abierta'||q.tipo==='reflexion')&&!q.criterios.length)q.criterios=[{criterio:'',puntos:2}]}
+function normalizar(qs,F){const max=F.modo==='video'?F.duracion:F.modo==='doc'?F.paginas:F.secciones||9999;
+  return(Array.isArray(qs)?qs:[]).filter(q=>q&&q.enunciado).map(q=>{const tipo=TIPOS[q.tipo]?q.tipo:'abierta';let t=typeof q.t==='string'?(parseT(q.t)??parseInt(q.t,10)):+q.t;if(!isFinite(t))t=0;t=Math.max(0,Math.round(max?Math.min(max,t):t));
+    const o={id:uid(),t,tipo,enunciado:String(q.enunciado),opciones:Array.isArray(q.opciones)?q.opciones.slice(0,6).map(x=>({texto:String(x&&typeof x==='object'?x.texto??'':x??''),correcta:!!(x&&x.correcta),feedback:String(x&&x.feedback||'')})):[],esperada:String(q.esperada||''),criterios:Array.isArray(q.criterios)?q.criterios.slice(0,6).map(c=>({criterio:String(c&&c.criterio||''),puntos:+(c&&c.puntos)||1})):[],respaldo:String(q.respaldo||''),ubicacion:String(q.ubicacion||''),nivel:NIVELES.includes(q.nivel)?q.nivel:'Comprender'};
+    if(tipo==='encuesta')o.opciones.forEach(x=>{x.correcta=false;x.feedback=''});ajustarTipo(o);return o}).sort((a,b)=>a.t-b.t)}
+async function generar(){if(S.busy)return;const f=S.form,tipos=f.tipos;
+  if(!tipos.length)return status('Elige al menos un tipo de pregunta.',true);
+  if(!CFG.key)return status('Falta tu clave de API de Anthropic. Agrégala en Ajustes.',true);
+  S.busy=true;const b=$('#go');if(b){b.disabled=true;b.textContent='Generando…'}
+  try{let F;
+    if(S.src==='yt'){if(!ytId(f.url))throw new Error('Pega el enlace del video de YouTube.');F=desdeTexto(f.ytx,f.url);if(F.modo!=='video')throw new Error('La transcripción debe traer los tiempos (por ejemplo 1:05). Cópiala desde "Mostrar transcripción" en YouTube.');F.kind='youtube'}else if(S.src==='vid')F=await desdeArchivo(S.vidFile,f);else if(S.src==='pdf')F=await desdePDF(S.pdfFile);else F=desdeTexto(f.txt,f.url2);
+    status('La IA está leyendo el contenido y armando las preguntas…');
+    let r;try{r=await cap.sample(promptGen(F,f,tipos),{modelTier:'complex',onText:({text})=>status(`Escribiendo preguntas… ${Math.round(text.length/100)/10} mil caracteres`)})}catch(e){throw new Error(sampleMsg(e))}
+    const j=parseJSON(r&&r.text);if(!j||!Array.isArray(j.preguntas))throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');
+    const L={id:uid(),titulo:String(j.titulo||F.nombre||'Lección sin título'),resumen:String(j.resumen||''),modo:F.modo,videoId:F.videoId||'',url:F.url||'',archivo:F.nombre||'',duracion:F.duracion||0,paginas:F.paginas||F.secciones||0,kind:F.kind||'',curso:f.curso||'',tema:f.tema||'',creada:Date.now(),preguntas:normalizar(j.preguntas,F)};
+    if(!L.preguntas.length)throw new Error('La IA no devolvió preguntas. Prueba otra vez o con otra fuente.');
+    if(F.mediaUrl){S.media[L.id]=F.mediaUrl;if(S.vidFile)idb.set(L.id,S.vidFile)}
+    S.cur=L;S.sel=0;S.busy=false;S.status='';upsertLocal(L);saveNow();go('editor');toast(`${L.preguntas.length} preguntas añadidas. Revísalas antes de usarlas.`)}
+  catch(e){S.busy=false;S.status=e.message||String(e);S.statusErr=true;if(S.view==='crear')render()}}
+
+/* ---------- vista: editor ---------- */
+const tlMax=L=>L.modo==='video'?Math.max(1,L.duracion||Math.max(1,...L.preguntas.map(q=>q.t))):Math.max(1,L.paginas||0,...L.preguntas.map(q=>q.t));
+function metaLine(L){const a=[L.modo==='video'?'Video · '+fmt(L.duracion):L.modo==='doc'?'PDF · '+L.paginas+' págs.':'Texto',L.preguntas.length+' preguntas'];if(L.curso)a.push(L.curso);if(L.kind==='asr')a.push('subtítulos automáticos');if(L.kind==='whisper')a.push('audio pasado a texto con Whisper');if(L.kind==='pantalla')a.push('texto en pantalla');return esc(a.join(' · '))}
+function tlHTML(){const L=S.cur,max=tlMax(L);return`<div class="tl"><div class="tlbar">${L.modo==='video'?'<span id="edhead" class="head"></span>':''}${L.preguntas.map((q,i)=>`<button class="mk ${i===S.sel?'on':''}" style="left:${(Math.min(q.t,max)/max*100).toFixed(2)}%;--c:${TIPOS[q.tipo].c}" data-act="sel" data-i="${i}" aria-label="${esc(ubic(q))}, ${esc(TIPOS[q.tipo].n)}"></button>`).join('')}</div>
+<div class="tlx"><span>${L.modo==='video'?'0:00':L.modo==='doc'?'p. 1':'Inicio'}</span><span>${L.modo==='video'?fmt(max):L.modo==='doc'?'p. '+max:'Final'}</span></div></div>`}
+function eventsHTML(){const qs=S.cur.preguntas;return`<div class="evh"><span>Eventos</span><span>${qs.length}</span></div>${qs.map((q,i)=>`<button class="ev ${i===S.sel?'on':''}" data-act="sel" data-i="${i}" style="--c:${TIPOS[q.tipo].c}"><span class="evt">${ico(q.tipo,15)} ${TIPOS[q.tipo].n}</span><span class="evtime">${esc(ubic(q))}</span><span class="evq">${esc(q.enunciado||'(sin enunciado)')}</span></button>`).join('')}
+<div class="add"><span>Agregar:</span>${Object.keys(TIPOS).map(k=>`<button class="mini" data-act="add" data-k="${k}" style="--c:${TIPOS[k].c}" title="${TIPOS[k].n}">${ico(k,18)}<span class="sr">${TIPOS[k].n}</span></button>`).join('')}</div>`}
+function qeditHTML(){const L=S.cur,q=L.preguntas[S.sel];if(!q)return`<p class="empty">Elige una pregunta de la lista o agrega una nueva.</p>`;
+  const isV=L.modo==='video',hasOpt=q.tipo==='multiple'||q.tipo==='encuesta',hasP=q.tipo==='abierta'||q.tipo==='reflexion';
+  return`<div class="qh"><span class="pill" style="--c:${TIPOS[q.tipo].c}">${ico(q.tipo,16)} ${TIPOS[q.tipo].n}</span>
+<label class="inline sm">${isV?'Tiempo':L.modo==='doc'?'Página':'Sección'}<input class="tin" data-f="t" value="${isV?fmt(q.t):q.t}" inputmode="numeric"></label>${isV?`<button type="button" class="btn ghost" data-act="tnow" title="Mover la pregunta al momento actual del video">Usar tiempo actual</button>`:''}
+<label class="inline sm">Tipo<select data-f="tipo">${Object.keys(TIPOS).map(k=>`<option value="${k}" ${k===q.tipo?'selected':''}>${TIPOS[k].n}</option>`).join('')}</select></label>
+<button class="btn ghost danger" data-act="del">Eliminar</button></div>
+<label>${q.tipo==='nota'?'Texto de la nota':'Enunciado'}<textarea rows="3" data-f="enunciado">${esc(q.enunciado)}</textarea></label>
+${hasOpt?`<div class="opts"><div class="lbl">${q.tipo==='multiple'?'Alternativas · toca el círculo para marcar la correcta':'Opciones de la escala'}</div>${q.opciones.map((o,j)=>`<div class="opt ${o.correcta?'ok':''}">${q.tipo==='multiple'?`<button class="ck" data-act="ok" data-j="${j}" aria-pressed="${!!o.correcta}" aria-label="Marcar alternativa ${j+1} como correcta">${o.correcta?'✓':''}</button>`:`<span class="num">${j+1}</span>`}
+<div class="ofields"><input data-f="op" data-j="${j}" value="${esc(o.texto)}" placeholder="Alternativa ${j+1}" aria-label="Alternativa ${j+1}">${q.tipo==='multiple'?`<input class="fb" data-f="fb" data-j="${j}" value="${esc(o.feedback)}" placeholder="Retroalimentación (opcional)" aria-label="Retroalimentación ${j+1}">`:''}</div>
+<button class="x" data-act="delop" data-j="${j}" aria-label="Quitar alternativa ${j+1}">×</button></div>`).join('')}${q.opciones.length<6?`<div><button class="btn ghost" data-act="addop">+ Alternativa</button></div>`:''}</div>`:''}
+${hasP?`<label>Respuesta esperada<textarea rows="3" data-f="esperada">${esc(q.esperada)}</textarea></label><div class="opts"><div class="lbl">Criterios de corrección y puntaje</div>${q.criterios.map((c,j)=>`<div class="crit"><input data-f="cr" data-j="${j}" value="${esc(c.criterio)}" placeholder="Criterio" aria-label="Criterio ${j+1}"><input data-f="pt" data-j="${j}" type="number" min="0" max="20" value="${esc(c.puntos)}" aria-label="Puntos criterio ${j+1}"><button class="x" data-act="delcr" data-j="${j}" aria-label="Quitar criterio ${j+1}">×</button></div>`).join('')}<div><button class="btn ghost" data-act="addcr">+ Criterio</button></div></div>`:''}
+${q.tipo!=='nota'&&q.tipo!=='encuesta'?`<label class="inline">Nivel cognitivo<select data-f="nivel">${NIVELES.map(n=>`<option ${n===q.nivel?'selected':''}>${n}</option>`).join('')}</select></label>`:''}
+${q.respaldo?`<div class="resp"><b>Respaldo en la fuente${q.ubicacion?' · '+esc(q.ubicacion):''}</b><p>“${esc(q.respaldo)}”</p></div>`:''}
+${isV&&L.videoId?`<a class="link" href="https://www.youtube.com/watch?v=${esc(L.videoId)}&t=${Math.max(0,Math.floor(q.t-20))}s" target="_blank" rel="noopener">Ver este momento en YouTube ↗</a>`:''}`}
+function vEditor(){const L=S.cur;if(!L)return vacio();const conV=L.modo==='video';return`<section class="edtop"><input class="title" data-f="titulo" value="${esc(L.titulo)}" aria-label="Título de la lección"><p class="meta">${metaLine(L)}</p>${L.resumen?`<p class="meta">${esc(L.resumen)}</p>`:''}
+<div class="acts"><button class="btn brand" data-act="estudiante">▶ Reproducir lección</button><button class="btn" data-act="copiar">Copiar texto</button><button class="btn" data-act="dl-csv">Descargar CSV</button><button class="btn" data-act="dl-json">Descargar JSON</button></div></section>
+${conV?`<section class="ed3"><aside class="events" id="events">${eventsHTML()}</aside><div class="edmid">${S.media[L.id]||L.videoId?`<div class="vbox" id="edv"></div>`:`<div class="card sq"><p style="margin:0">Elige el archivo del video para verlo aquí mientras editas.</p><label>Archivo del video<input id="ed-file" type="file" accept="video/*"></label></div>`}<div id="tlw">${tlHTML()}</div><p class="meta" style="margin:4px 10px">Tiempo actual: <b id="edtime">0:00</b> · los botones de "Agregar" ponen la pregunta en este momento.</p></div><section class="qedit card" id="qedit">${qeditHTML()}</section></section>`
+:`<div id="tlw">${tlHTML()}</div><section class="ed"><aside class="events" id="events">${eventsHTML()}</aside><section class="qedit card" id="qedit">${qeditHTML()}</section></section>`}`}
+function bindEditorPlayer(){const L=S.cur;if(!L||L.modo!=='video'||!$('#edv'))return;
+  const ok=montarPlayer('edv',L,(t,dur)=>{const hd=$('#edhead');if(hd)hd.style.left=Math.min(100,t/Math.max(1,dur)*100)+'%';const et=$('#edtime');if(et)et.textContent=fmt(t)});
+  if(!ok&&!S.edChecked){S.edChecked=true;idb.get(L.id).then(b=>{if(b instanceof Blob&&S.cur&&S.cur.id===L.id){S.media[L.id]=URL.createObjectURL(b);if(S.view==='editor')render()}})}}
+function refreshSide(){const e=$('#events'),t=$('#tlw');if(e)e.innerHTML=eventsHTML();if(t)t.innerHTML=tlHTML()}
+function refreshEditor(){refreshSide();const q=$('#qedit');if(q)q.innerHTML=qeditHTML()}
+function ordenar(){const L=S.cur,q=L.preguntas[S.sel];L.preguntas.sort((a,b)=>a.t-b.t);S.sel=Math.max(0,L.preguntas.indexOf(q))}
+function editField(el){const L=S.cur,f=el.dataset.f,j=+el.dataset.j,v=el.value;if(f==='titulo'){L.titulo=v;dirty();return}
+  const q=L.preguntas[S.sel];if(!q)return;
+  switch(f){case'enunciado':q.enunciado=v;refreshSide();break;
+    case't':{const n=L.modo==='video'?parseT(v):parseInt(v,10);if(n==null||isNaN(n))return;q.t=Math.max(0,n);break}
+    case'op':q.opciones[j].texto=v;break;case'fb':q.opciones[j].feedback=v;break;
+    case'esperada':q.esperada=v;break;case'cr':q.criterios[j].criterio=v;break;case'pt':q.criterios[j].puntos=Math.max(0,+v||0);break;
+    case'nivel':q.nivel=v;break;default:return}
+  dirty()}
+
+/* ---------- exportar ---------- */
+function filasLeccion(L){const rows=[[L.modo==='video'?'Tiempo':L.modo==='doc'?'Página':'Sección','Tipo','Enunciado','A','B','C','D','E','F','Correcta(s)','Respuesta esperada','Criterios','Nivel','Respaldo']];
+  for(const q of L.preguntas){const o=q.opciones||[],abc='ABCDEF';rows.push([ubic(q,L),TIPOS[q.tipo].n,q.enunciado,...Array.from({length:6},(_,i)=>o[i]?o[i].texto:''),q.tipo==='multiple'?o.map((x,i)=>x.correcta?abc[i]:'').filter(Boolean).join(', '):'',q.esperada||'',(q.tipo==='abierta'||q.tipo==='reflexion')?q.criterios.map(c=>`${c.criterio} (${c.puntos})`).join(' | '):'',q.tipo==='nota'||q.tipo==='encuesta'?'':q.nivel,q.respaldo||''])}return rows}
+function textoLeccion(L){const out=[L.titulo,L.url?L.url:'',''];L.preguntas.forEach((q,n)=>{out.push(`${n+1}. [${ubic(q,L)}] ${TIPOS[q.tipo].n}`,q.enunciado);
+  (q.opciones||[]).forEach((o,i)=>out.push(`   ${'ABCDEF'[i]}) ${o.texto}${q.tipo==='multiple'&&o.correcta?'  ← correcta':''}${q.tipo==='multiple'&&o.feedback?'  (Feedback: '+o.feedback+')':''}`));
+  if(q.esperada)out.push('   Respuesta esperada: '+q.esperada);if(q.criterios&&q.criterios.length&&(q.tipo==='abierta'||q.tipo==='reflexion'))out.push('   Pauta: '+q.criterios.map(c=>`${c.criterio} (${c.puntos} pts)`).join('; '));out.push('')});return out.join('\n')}
+
+/* ---------- vista: mis lecciones ---------- */
+function thumbArt(L){const max=tlMax(L),icon=L.modo==='video'?'<circle cx="80" cy="66" r="30" fill="#ff5b3a"/><path d="M71 51v30l25-15z" fill="#fff"/>':L.modo==='doc'?'<path d="M60 30h34l14 14v50H60z" fill="#fff" opacity=".9"/><path d="M70 58h28M70 68h28M70 78h18" stroke="#24497f" stroke-width="4" stroke-linecap="round"/>':'<path d="M56 44h60M56 60h60M56 76h40" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".9"/>';
+  return`<svg viewBox="0 0 320 160" aria-hidden="true">${icon}<text x="140" y="74" fill="#fff" font-family="Nunito,sans-serif" font-weight="800" font-size="30">${L.preguntas.length}</text><text x="140" y="94" fill="#fff" opacity=".8" font-family="Inter,sans-serif" font-size="13">preguntas</text>
+<line x1="20" y1="134" x2="300" y2="134" stroke="#fff" stroke-opacity=".3" stroke-width="5" stroke-linecap="round"/>${L.preguntas.map(q=>`<circle cx="${(20+Math.min(q.t,max)/max*280).toFixed(1)}" cy="134" r="6" fill="${TIPOS[q.tipo].c}" stroke="#fff" stroke-width="2"/>`).join('')}</svg>`}
+function vLecciones(){const ls=S.lessons;return`<section class="band"><div class="hrow"><h1>Mis lecciones</h1><button class="btn brand" data-go="crear">+ Nueva lección</button></div>
+${S.dbOK===false?`<p class="note">El guardado no está disponible en esta vista: las lecciones duran solo mientras la página esté abierta. Descarga el JSON si quieres conservarlas.</p>`:''}
+${ls.length?`<div class="cards">${ls.map(L=>`<article class="lcard"><div class="thumb ${esc(L.modo)}">${thumbArt(L)}</div><div class="lb"><h3>${esc(L.titulo)}</h3><p class="meta">${metaLine(L)}</p><p class="meta">${esc(new Date(L.creada||Date.now()).toLocaleDateString('es-CL'))}</p>
+<div class="acts"><button class="btn" data-act="open" data-id="${esc(L.id)}">Editar</button><button class="btn ghost" data-act="play" data-id="${esc(L.id)}">▶ Reproducir</button><button class="btn ghost danger" data-act="borrar" data-id="${esc(L.id)}">Borrar</button></div></div></article>`).join('')}</div>`
+:`<div class="emptyb">${S.dbOK===null||S.dbOK==='lento'?'Cargando tus lecciones…':'Todavía no tienes lecciones. Crea la primera desde un video, un PDF o un texto.'}</div>`}</section>`}
+
+/* ---------- vista: estudiante ---------- */
+function filasResultados(){const L=S.cur,st=S.st,rows=[['Estudiante',L.modo==='video'?'Tiempo':'Ubicación','Tipo','Pregunta','Respuesta','Resultado']];
+  L.preguntas.forEach((q,i)=>{const a=st.ans[i];if(q.tipo==='nota')return;rows.push([st.name||'Sin nombre',ubic(q),TIPOS[q.tipo].n,q.enunciado,a?a.texto:'(sin responder)',q.tipo==='multiple'?(a?(a.ok?'Correcta':'Incorrecta'):'—'):(q.tipo==='encuesta'?'Encuesta':'Por revisar')])});return rows}
+function vPasos(){const L=S.cur,st=S.st;if(!L||!st)return vacio();const qs=L.preguntas,n=qs.length;
+  const head=`<div class="hrow" style="margin:0"><button class="btn ghost" data-act="salir">← Volver al editor</button><span class="meta">${st.i>=0&&st.i<n?`Pregunta ${st.i+1} de ${n}`:'Vista estudiante'}</span></div>`;
+  if(st.i<0)return`<section class="stu">${head}<div class="card sq"><h2>${esc(L.titulo)}</h2>${L.resumen?`<p style="margin:0">${esc(L.resumen)}</p>`:''}<p class="meta">${n} preguntas.${L.modo==='video'?' Antes de cada pregunta verás qué parte del video mirar.':''}</p><label>Tu nombre<input id="st-name" value="${esc(st.name)}" autocomplete="name"></label><div><button class="btn brand big" data-act="start">Comenzar</button></div></div></section>`;
+  const pr=`<div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${Math.min(st.i,n)}"><i style="width:${(Math.min(st.i,n)/n*100).toFixed(1)}%"></i></div>`;
+  if(st.i>=n){const rows=filasResultados(),mc=qs.map((q,i)=>[q,st.ans[i]]).filter(([q])=>q.tipo==='multiple'),ok=mc.filter(([,a])=>a&&a.ok).length;
+    return`<section class="stu">${head}${pr}<div class="card sq"><span class="meta">${esc(st.name||'Sin nombre')}</span>${mc.length?`<div class="score">${ok}/${mc.length}</div><p style="margin:0">Respuestas correctas en opción múltiple (${Math.round(ok/mc.length*100)}%). Las abiertas quedan para revisión del docente.</p>`:`<h2>¡Terminaste!</h2>`}
+<div class="scroll"><table class="stack"><thead><tr>${rows[0].slice(1).map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map(r=>`<tr>${r.slice(1).map((c,k)=>`<td${k===0?' class="n"':''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+<div class="acts"><button class="btn" data-act="st-copy">Copiar resultados</button><button class="btn" data-act="st-dl">Descargar CSV</button><button class="btn ghost" data-act="again">Otro estudiante</button></div></div></section>`}
+  const q=qs[st.i],a=st.ans[st.i],prevT=st.i?qs[st.i-1].t:0;let watch='';
+  const local=/^blob:/.test(S.media[L.id]||'');
+  if(L.modo==='video'&&q.t>prevT&&local)watch=`<div class="card sq"><video id="stv" src="${esc(S.media[L.id])}" controls playsinline preload="metadata" style="width:100%;max-height:420px;border-radius:12px;background:#000"></video><div class="row" style="align-items:center"><span class="meta">Mira de ${fmt(prevT)} a ${fmt(q.t)}. El video se detiene solo.</span><button class="btn brand" data-act="tramo" data-a="${prevT}" data-b="${q.t}">▶ Reproducir tramo</button></div></div>`;
+  else if(L.modo==='video'&&q.t>prevT)watch=`<div class="watch"><div><b>Mira el video${prevT?' desde '+fmt(prevT):''} hasta ${fmt(q.t)}</b><div style="font-size:14px;opacity:.85">Luego responde.</div></div>${L.videoId?`<a class="btn" href="https://www.youtube.com/watch?v=${esc(L.videoId)}&t=${Math.floor(prevT)}s" target="_blank" rel="noopener">Abrir video en ${fmt(prevT)} ↗</a>`:''}</div>`;
+  else if(L.modo==='doc'&&q.t>prevT)watch=`<div class="watch"><b>Lee hasta la página ${q.t}</b></div>`;
+  let body='';
+  if(q.tipo==='multiple'||q.tipo==='encuesta'){body=`<div class="ans">${q.opciones.map((o,j)=>{let c='';if(a){if(q.tipo==='multiple'){if(o.correcta)c='ok';else if(a.j===j)c='bad'}else if(a.j===j)c='ok'}return`<button data-act="resp" data-j="${j}" class="${c}" ${a?'disabled':''}>${esc(o.texto)}</button>`}).join('')}</div>`;
+    if(a&&q.tipo==='multiple'){const o=q.opciones[a.j]||{};body+=`<div class="fbk"><b>${a.ok?'¡Correcto!':'No es correcta.'}</b> ${esc(o.feedback||'')}${a.ok?'':`<br>Respuesta correcta: ${esc(q.opciones.filter(x=>x.correcta).map(x=>x.texto).join(' / '))}`}</div>`}}
+  else if(q.tipo!=='nota')body=`<textarea id="st-txt" rows="5" placeholder="Escribe tu respuesta" aria-label="Tu respuesta" ${a?'disabled':''}>${esc(a?a.texto:'')}</textarea>`;
+  const next=a||q.tipo==='nota'?`<button class="btn brand big" data-act="next">${st.i===n-1?'Ver resultados':'Siguiente'}</button>`:(q.tipo==='abierta'||q.tipo==='reflexion')?`<button class="btn brand big" data-act="saveopen">Guardar respuesta</button>`:'';
+  return`<section class="stu">${head}${pr}${watch}<div class="card sq"><span class="pill" style="--c:${TIPOS[q.tipo].c}">${ico(q.tipo,16)} ${TIPOS[q.tipo].n}</span><h2>${esc(q.enunciado)}</h2>${body}<div>${next}</div></div></section>`}
+
+
+
+/* ---------- reproductor: YouTube o archivo ---------- */
+let ytP=null,PL=null;
+function cargarYT(){if(window.YT&&window.YT.Player)return Promise.resolve(window.YT);if(ytP)return ytP;
+  ytP=new Promise((ok,ko)=>{const prev=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{try{prev&&prev()}catch(e){}ok(window.YT)};const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>{ytP=null;ko(new Error('No se pudo cargar YouTube. Revisa tu conexión.'))};document.head.appendChild(s)});return ytP}
+function destruirPlayer(){if(!PL)return;clearInterval(PL.timer);try{PL.destroy()}catch(e){}PL=null}
+function montarPlayer(hostId,L,onTick){destruirPlayer();const host=$('#'+hostId);if(!host)return false;const url=S.media[L.id];
+  if(url){host.innerHTML=`<video src="${esc(url)}" controls playsinline preload="auto"></video>`;const v=host.querySelector('video');
+    PL={kind:'file',get:()=>v.currentTime||0,dur:()=>v.duration&&isFinite(v.duration)?v.duration:Math.max(1,L.duracion||1),seek:t=>{v.currentTime=t},play:()=>{v.play().catch(()=>{})},pause:()=>v.pause(),paused:()=>v.paused,destroy:()=>v.pause()};
+    v.addEventListener('error',()=>{toast('No se pudo reproducir el archivo del video.');delete S.media[L.id];idb.del(L.id)})}
+  else if(L.videoId){host.innerHTML='<div id="ytp-'+hostId+'"></div>';const me={kind:'yt',yt:null,get(){try{return me.yt.getCurrentTime()||0}catch(e){return 0}},dur(){try{return me.yt.getDuration()||Math.max(1,L.duracion||1)}catch(e){return Math.max(1,L.duracion||1)}},seek(t){try{me.yt.seekTo(t,true)}catch(e){}},play(){try{me.yt.playVideo()}catch(e){}},pause(){try{me.yt.pauseVideo()}catch(e){}},paused(){try{return me.yt.getPlayerState()!==1}catch(e){return true}},destroy(){try{me.yt.destroy()}catch(e){}}};PL=me;
+    cargarYT().then(YT=>{if(PL!==me)return;me.yt=new YT.Player('ytp-'+hostId,{videoId:L.videoId,width:'100%',height:'100%',playerVars:{rel:0,playsinline:1,modestbranding:1},events:{onError:e=>toast(e.data===101||e.data===150||e.data===153?'El dueño de este video no permite verlo fuera de YouTube. Usa otro video o sube el archivo.':'YouTube no pudo reproducir este video (código '+e.data+').')}})}).catch(e=>{host.innerHTML=`<p class="empty" style="color:#fff;padding:16px">${esc(e.message)}</p>`})}
+  else return false;
+  PL.timer=setInterval(()=>{if(PL)onTick(PL.get(),PL.dur())},250);return true}
+
+/* ---------- guardar videos en este navegador ---------- */
+const idb=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,ko)=>{try{const r=indexedDB.open('cuestiona',1);r.onupgradeneeded=()=>r.result.createObjectStore('videos');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)}catch(e){ko(e)}}).catch(e=>{p=null;throw e}));
+  const run=(mode,fn)=>open().then(db=>new Promise((ok,ko)=>{const t=db.transaction('videos',mode),r=fn(t.objectStore('videos'));t.oncomplete=()=>ok(r?r.result:undefined);t.onerror=()=>ko(t.error);t.onabort=()=>ko(t.error)}));
+  return{get:k=>run('readonly',s=>s.get(k)).catch(()=>null),set:(k,v)=>run('readwrite',s=>s.put(v,k)).catch(()=>null),del:k=>run('readwrite',s=>s.delete(k)).catch(()=>null)}})();
+
+/* ---------- vista: reproducir (video continuo + preguntas al lado) ---------- */
+function vEstudiante(){const L=S.cur,st=S.st;if(!L||!st)return vacio();
+  if(L.modo!=='video'||st.step)return vPasos();
+  const url=S.media[L.id];
+  if(!url&&!L.videoId){if(!st.checked){st.checked=true;idb.get(L.id).then(b=>{if(b instanceof Blob){S.media[L.id]=URL.createObjectURL(b)}if(S.view==='estudiante'&&S.cur&&S.cur.id===L.id)render()});return`<section class="stu"><p class="meta">Buscando el video guardado…</p></section>`}
+    return`<section class="stu"><div class="hrow" style="margin:0"><button class="btn ghost" data-act="salir">← Volver al editor</button></div><div class="card sq"><h2>${esc(L.titulo)}</h2>
+<p style="margin:0">Elige el archivo de este video para reproducirlo aquí. Las preguntas aparecerán al lado en su minuto. El archivo queda guardado en este navegador para la próxima vez.</p>
+<label>Archivo del video<input id="pv-file" type="file" accept="video/*"></label><div class="acts"><button class="btn ghost" data-act="sinvideo">Seguir sin video (por pasos)</button></div></div></section>`}
+  const qs=L.preguntas,n=qs.length,max=Math.max(1,L.duracion||1);
+  return`<section class="play"><div class="hrow" style="margin:0"><button class="btn ghost" data-act="salir">← Volver al editor</button><h2 style="margin:0;font-size:clamp(18px,2.4vw,24px)">${esc(L.titulo)}</h2><button class="btn" data-act="vres">Ver resultados</button></div>
+<div class="pgrid"><div class="pv"><div class="vbox" id="pvh"></div>
+<div class="ptl" id="ptl"><span id="pvfill"></span>${qs.map((q,i)=>`<button class="mk ${st.shown[i]?'done':''}" style="left:${(Math.min(q.t,max)/max*100).toFixed(2)}%;--c:${TIPOS[q.tipo].c}" data-act="seek" data-t="${q.t}" aria-label="Ir a ${fmt(q.t)}, ${esc(TIPOS[q.tipo].n)}"></button>`).join('')}</div>
+<div class="row" style="align-items:center;margin-top:6px"><label class="chip"><input type="checkbox" id="pv-pausa" ${st.pausa?'checked':''}><span>Pausar en cada pregunta</span></label><label class="inline" style="min-width:220px">Nombre (opcional)<input id="pv-name" value="${esc(st.name)}" autocomplete="name"></label></div></div>
+<aside class="pq" aria-live="polite"><div class="pqh"><b>Preguntas</b><span class="meta" id="pqcount">${Object.keys(st.shown).length} de ${n}</span></div><div id="pql">${Object.keys(st.shown).length?Object.keys(st.shown).map(Number).sort((a,b)=>b-a).map(i=>qCard(i,false)).join(''):`<p class="empty" id="pqempty">Dale play: las preguntas aparecerán aquí a medida que avance el video, sin detenerlo.</p>`}</div></aside></div></section>`}
+function qCard(i,nueva){const q=S.cur.preguntas[i],a=S.st.ans[i];let body='';
+  if(q.tipo==='multiple'||q.tipo==='encuesta'){body=`<div class="ans">${q.opciones.map((o,j)=>{let c='';if(a){if(q.tipo==='multiple'){if(o.correcta)c='ok';else if(a.j===j)c='bad'}else if(a.j===j)c='ok'}return`<button data-act="vresp" data-i="${i}" data-j="${j}" class="${c}" ${a?'disabled':''}>${esc(o.texto)}</button>`}).join('')}</div>`;
+    if(a&&q.tipo==='multiple'){const o=q.opciones[a.j]||{};body+=`<div class="fbk"><b>${a.ok?'¡Correcto!':'No es correcta.'}</b> ${esc(o.feedback||'')}${a.ok?'':`<br>Correcta: ${esc(q.opciones.filter(x=>x.correcta).map(x=>x.texto).join(' / '))}`}</div>`}}
+  else if(q.tipo!=='nota')body=a?`<div class="fbk">${esc(a.texto)}</div>`:`<textarea id="vt-${i}" rows="3" placeholder="Escribe tu respuesta" aria-label="Respuesta"></textarea><div><button class="btn brand" data-act="vsave" data-i="${i}">Guardar respuesta</button></div>`;
+  return`<article class="qc ${nueva?'nueva':''}" id="qc-${i}" style="--c:${TIPOS[q.tipo].c}"><div class="qch"><span class="pill">${ico(q.tipo,15)} ${TIPOS[q.tipo].n}</span><button class="tm" data-act="seek" data-t="${q.t}" title="Volver a este momento">${fmt(q.t)}</button></div><h3>${esc(q.enunciado)}</h3>${body}</article>`}
+function bindPlayer(){if(!$('#pvh'))return;const L=S.cur,st=S.st,qs=L.preguntas;let fin=false,lastMax=0;
+  const tick=(t,dur)=>{const f=$('#pvfill');if(f)f.style.width=Math.min(100,t/dur*100)+'%';
+    if(dur&&Math.abs(dur-lastMax)>1){lastMax=dur;document.querySelectorAll('#ptl .mk').forEach((m,i)=>{m.style.left=(Math.min(qs[i].t,dur)/dur*100).toFixed(2)+'%'})}
+    qs.forEach((q,i)=>{if(st.shown[i]||q.t>t+0.25)return;if(q.t>0.5&&t-q.t>3&&PL&&PL.paused())return;st.shown[i]=true;const list=$('#pql');if(!list)return;const e=$('#pqempty');if(e)e.remove();list.insertAdjacentHTML('afterbegin',qCard(i,true));
+      const mk=document.querySelectorAll('#ptl .mk')[i];if(mk)mk.classList.add('done');const c=$('#pqcount');if(c)c.textContent=`${Object.keys(st.shown).length} de ${qs.length}`;
+      setTimeout(()=>{const el=$('#qc-'+i);if(el)el.classList.remove('nueva')},6000);
+      if(st.pausa&&q.t>0.5&&PL&&!PL.paused())PL.pause()});
+    if(!fin&&dur>2&&t>=dur-0.6){fin=true;toast('Terminó el video.',{label:'Ver resultados',act:'vres'})}};
+  montarPlayer('pvh',L,tick)}
+
+
+/* ---------- vista: ajustes ---------- */
+function vAjustes(){return`<section class="band"><h1>Ajustes</h1><p class="lead">Cuestiona usa tu propia clave de la API de Anthropic para crear y corregir preguntas. Cada uso se cobra a tu cuenta de API.</p>
+<div class="card gen" style="margin-top:18px"><h2 style="margin:0">Clave de API</h2>
+<label>Clave de API de Anthropic<input id="cfg-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(CFG.key)}"></label>
+<label class="inline">Modelo<select id="cfg-model">${MODELOS.map(([v,n])=>`<option value="${v}" ${CFG.model===v?'selected':''}>${n}</option>`).join('')}</select></label>
+<div class="acts"><button class="btn brand" data-act="cfg-save">Guardar</button><button class="btn" data-act="cfg-test">Probar conexión</button>${CFG.key?`<button class="btn ghost danger" data-act="cfg-del">Borrar clave</button>`:''}</div>
+<p class="status" id="cfgst">${esc(S.cfgMsg||'')}</p>
+<details class="hint" open><summary>Dónde conseguir la clave y cómo cuidarla</summary><ol>
+<li>Entra a <a class="link" href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> con tu cuenta, carga saldo y crea una clave en <b>API Keys</b>.</li>
+<li>Fija un límite de gasto mensual en la consola, para no llevarte sorpresas.</li>
+<li>La clave queda guardada <b>solo en este navegador</b>. No la escribas en el código ni la subas a GitHub. Si usas un computador compartido, bórrala al terminar.</li></ol></details></div>
+<div class="card gen" style="margin-top:18px"><h2 style="margin:0">Respaldo de lecciones</h2>
+<p class="hint">Tus lecciones se guardan en este navegador. Descarga un respaldo de vez en cuando. También puedes importar lecciones descargadas desde la versión de Cuestiona en claude.ai (botón "Descargar JSON").</p>
+<div class="acts"><button class="btn" data-act="exp-all">Descargar todas (${S.lessons.length})</button></div>
+<label>Importar lecciones (archivo .json)<input id="imp-file" type="file" accept="application/json,.json"></label></div></section>`}
+
+/* ---------- vista: corregir ---------- */
+function todas(){const ls=S.lessons.slice();if(S.cur&&!ls.find(x=>x.id===S.cur.id))ls.unshift(S.cur);return ls.map(x=>S.cur&&x.id===S.cur.id?S.cur:x)}
+function vCorregir(){const g=S.grade||(S.grade={lid:'',qid:'',preg:'',esperada:'',criterios:'',resp:'',res:null,busy:false,msg:'',err:false});
+  const ls=todas(),L=ls.find(x=>x.id===g.lid),ab=L?L.preguntas.filter(q=>q.tipo==='abierta'||q.tipo==='reflexion'):[];
+  if(L&&!ab.find(q=>q.id===g.qid))g.qid=ab[0]?ab[0].id:'';
+  return`<section class="band"><h1>Corregir respuestas abiertas</h1><p class="lead">Pega las respuestas de tus estudiantes. La IA propone puntaje y retroalimentación según la pauta. La nota final la decides tú.</p>
+<div class="card gen" style="margin-top:18px"><div class="grid2"><label>Lección<select data-g2="lid"><option value="">Escribir la pauta a mano</option>${ls.map(x=>`<option value="${esc(x.id)}" ${x.id===g.lid?'selected':''}>${esc(x.titulo)}</option>`).join('')}</select></label>
+${L?`<label>Pregunta<select data-g2="qid">${ab.length?ab.map(q=>`<option value="${esc(q.id)}" ${q.id===g.qid?'selected':''}>${esc(ubic(q,L))} · ${esc(q.enunciado.slice(0,80))}</option>`).join(''):'<option value="">Esta lección no tiene preguntas abiertas</option>'}</select></label>`:''}</div>
+${L?'':`<label>Pregunta<textarea rows="2" data-g="preg">${esc(g.preg)}</textarea></label><label>Respuesta esperada<textarea rows="3" data-g="esperada">${esc(g.esperada)}</textarea></label><label>Criterios (uno por línea, con puntos al final)<textarea rows="3" data-g="criterios" placeholder="Menciona el rango de temperatura de riesgo – 2&#10;Explica por qué se multiplican las bacterias – 2">${esc(g.criterios)}</textarea></label>`}
+<label>Respuestas (una por línea: Nombre: respuesta)<textarea rows="8" data-g="resp" placeholder="Camila Soto: Hay que enfriar rápido porque…&#10;Diego Rojas: …">${esc(g.resp)}</textarea></label>
+<div class="row"><span class="meta">Hasta 60 respuestas por vez.</span><button class="btn brand big" data-act="corregir" ${g.busy?'disabled':''}>${g.busy?'Corrigiendo…':'Corregir con IA'}</button></div>
+<div class="status ${g.err?'err':''}" aria-live="polite">${esc(g.msg)}</div></div>
+${g.res?`<div class="card gen" style="margin-top:18px"><div class="hrow" style="margin:0"><h2 style="margin:0">Propuesta de corrección</h2><div class="acts" style="margin:0"><button class="btn" data-act="g-copy">Copiar</button><button class="btn" data-act="g-dl">Descargar CSV</button></div></div>
+<div class="scroll"><table class="stack"><thead><tr><th>Estudiante</th><th>Puntaje</th><th>Nivel</th><th>Retroalimentación</th><th>Revisar</th></tr></thead><tbody>${g.res.map(r=>`<tr><td>${esc(r.estudiante)}</td><td class="n">${esc(r.puntaje)} / ${esc(r.maximo)}</td><td>${esc(r.nivel)}</td><td>${esc(r.feedback)}</td><td>${r.revisar?`<span class="flag">Sí</span> ${esc(r.motivo||'')}`:'No'}</td></tr>`).join('')}</tbody></table></div></div>`:''}</section>`}
+const filasGrade=()=>[['Estudiante','Respuesta','Puntaje','Máximo','Nivel','Retroalimentación','Revisar','Motivo']].concat(S.grade.res.map(r=>[r.estudiante,r.respuesta,r.puntaje,r.maximo,r.nivel,r.feedback,r.revisar?'Sí':'No',r.motivo||'']));
+async function corregir(){const g=S.grade;if(g.busy)return;const fail=m=>{g.msg=m;g.err=true;render()};
+  if(!CFG.key)return fail('Falta tu clave de API de Anthropic. Agrégala en Ajustes.');
+  const L=todas().find(x=>x.id===g.lid);let preg,esp,crit;
+  if(L){const q=L.preguntas.find(x=>x.id===g.qid);if(!q)return fail('Elige una pregunta abierta.');preg=q.enunciado;esp=q.esperada;crit=q.criterios.map(c=>`- ${c.criterio} (${c.puntos} pts)`).join('\n')}else{preg=g.preg;esp=g.esperada;crit=g.criterios}
+  if(!String(preg||'').trim())return fail('Escribe la pregunta.');
+  const est=String(g.resp||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).slice(0,60).map((l,i)=>{const m=l.match(/^([^:]{1,40}):\s*(.+)$/);return m?{n:m[1].trim(),r:m[2].trim()}:{n:'Estudiante '+(i+1),r:l}});
+  if(!est.length)return fail('Pega al menos una respuesta.');
+  g.busy=true;g.msg='La IA está corrigiendo…';g.err=false;render();
+  const p=`Eres un corrector docente de enseñanza media en Chile. Corrige cada respuesta SOLO con la pauta. No inventes criterios.
+PREGUNTA: ${preg}
+RESPUESTA ESPERADA: ${esp||'(no indicada)'}
+CRITERIOS Y PUNTAJE:
+${crit||'(no indicados: usa 0 a 3 puntos según calidad)'}
+
+RESPUESTAS (en orden):
+${est.map((e,i)=>`${i+1}. ${e.n}: ${e.r}`).join('\n')}
+
+Devuelve un resultado por respuesta, en el mismo orden y con el mismo nombre. "feedback": 1 o 2 frases dirigidas al estudiante, en segunda persona, amables y concretas. Marca "revisar": true si la respuesta es ambigua, muy corta, fuera de tema o casi idéntica a otra, y explica en "motivo".
+Responde SOLO con JSON válido: {"resultados":[{"estudiante":"","puntaje":0,"maximo":0,"nivel":"Logrado|Medianamente logrado|Por lograr","feedback":"","revisar":false,"motivo":""}]}`;
+  try{const r=await cap.sample(p,{modelTier:'default'});const j=parseJSON(r&&r.text);if(!j||!Array.isArray(j.resultados))throw new Error('La IA no devolvió un formato válido. Vuelve a intentarlo.');
+    g.res=est.map((e,i)=>{const x=j.resultados[i]||{};return{estudiante:String(x.estudiante||e.n),respuesta:e.r,puntaje:x.puntaje??'',maximo:x.maximo??'',nivel:String(x.nivel||''),feedback:String(x.feedback||''),revisar:!!x.revisar,motivo:String(x.motivo||'')}});
+    g.msg='Revisa cada propuesta antes de poner nota.';g.err=false}
+  catch(e){g.msg=e&&e.code?sampleMsg(e):'No se pudo corregir: '+(e.message||e);g.err=true}
+  g.busy=false;if(S.view==='corregir')render()}
+
+/* ---------- eventos ---------- */
+const main=$('#main');
+document.addEventListener('submit',e=>{if(e.target.id==='gen'){e.preventDefault();generar()}});
+main.addEventListener('input',e=>{const el=e.target,id=el.id||'';
+  if(id.startsWith('f-')&&el.type!=='file'&&el.type!=='checkbox'&&el.tagName!=='SELECT'){S.form[id.slice(2)]=el.value;return}
+  if(S.view==='editor'&&el.dataset.f&&el.dataset.f!=='tipo'){editField(el);return}
+  if(S.view==='corregir'&&el.dataset.g&&S.grade)S.grade[el.dataset.g]=el.value;
+  if(id==='pv-name'&&S.st)S.st.name=el.value});
+main.addEventListener('change',e=>{const el=e.target;
+  if(el.name==='tipo'){S.form.tipos=[...document.querySelectorAll('input[name=tipo]:checked')].map(x=>x.value);return}
+  if(el.id==='f-n'){S.form.n=el.value;return}
+  if(el.id==='f-pdf'){S.pdfFile=el.files&&el.files[0]||null;return}
+  if(el.id==='f-vid'){S.vidFile=el.files&&el.files[0]||null;return}
+  if(el.id==='f-asr'||el.id==='f-ocr'){S.form[el.id.slice(2)]=el.checked;return}
+  if(el.id==='f-lang'){S.form.lang=el.value;return}
+  if(el.id==='pv-pausa'&&S.st){S.st.pausa=el.checked;return}
+  if(el.id==='ed-file'&&S.cur){const fl=el.files&&el.files[0];if(!fl)return;S.media[S.cur.id]=URL.createObjectURL(fl);idb.set(S.cur.id,fl);render();return}
+  if(el.id==='imp-file'){const fl=el.files&&el.files[0];if(!fl)return;fl.text().then(t=>{let d;try{d=JSON.parse(t)}catch(e){toast('El archivo no es un JSON válido.');return}const arr=(Array.isArray(d)?d:[d]).filter(x=>x&&Array.isArray(x.preguntas));if(!arr.length){toast('No encontré lecciones en ese archivo.');return}
+    let n=0;for(const x of arr){const L=Object.assign({},x);if(!L.id||S.lessons.some(y=>y.id===L.id))L.id=uid();L.creada=L.creada||Date.now();L.titulo=String(L.titulo||'Lección importada');L.preguntas=L.preguntas.filter(q=>q&&TIPOS[q.tipo]).map(q=>{const o=Object.assign({id:uid(),t:0,enunciado:'',opciones:[],esperada:'',criterios:[],respaldo:'',ubicacion:'',nivel:'Comprender'},q);o.t=+o.t||0;return o});S.lessons.unshift(L);n++}
+    S.lessons.sort((a,b)=>(b.creada||0)-(a.creada||0));persist();updCount();toast(n+(n===1?' lección importada.':' lecciones importadas.'))});return}
+  if(el.id==='pv-file'&&S.cur){const fl=el.files&&el.files[0];if(!fl)return;S.media[S.cur.id]=URL.createObjectURL(fl);idb.set(S.cur.id,fl);render();return}
+  if(S.view==='editor'&&el.dataset.f==='t'){ordenar();refreshEditor();return}
+  if(S.view==='editor'&&el.dataset.f==='tipo'){const q=S.cur.preguntas[S.sel];if(!q)return;q.tipo=el.value;ajustarTipo(q);refreshEditor();dirty();return}
+  if(S.view==='corregir'&&el.dataset.g2&&S.grade){S.grade[el.dataset.g2]=el.value;if(el.dataset.g2==='lid')S.grade.qid='';S.grade.res=null;render()}});
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();go(g.dataset.go);return}
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,i=+b.dataset.i,j=+b.dataset.j,k=b.dataset.k,id=b.dataset.id,L=S.cur,q=L&&L.preguntas?L.preguntas[S.sel]:null;
+  switch(a){
+    case'src':S.src=k;S.status='';S.statusErr=false;render();break;
+    case'sel':S.sel=i;refreshEditor();if(PL&&S.view==='editor'&&S.cur.preguntas[i]){PL.seek(S.cur.preguntas[i].t);PL.pause()}if(e.target.closest('.mk,.ev')&&innerWidth<960){const qe=$('#qedit');if(qe)qe.scrollIntoView({behavior:'smooth',block:'start'})}break;
+    case'add':{const max=tlMax(L),base=PL&&S.view==='editor'?Math.round(PL.get()):q?q.t+(L.modo==='video'?15:1):0,nq={id:uid(),t:Math.min(max,base),tipo:k,enunciado:'',opciones:[],esperada:'',criterios:[],respaldo:'',ubicacion:'',nivel:'Comprender'};ajustarTipo(nq);L.preguntas.push(nq);S.sel=L.preguntas.length-1;ordenar();S.sel=L.preguntas.indexOf(nq);refreshEditor();dirty();const t=$('#qedit textarea');if(t)t.focus();break}
+    case'del':if(!q)return;S.undo={q,idx:S.sel,lid:L.id};L.preguntas.splice(S.sel,1);S.sel=Math.max(0,Math.min(S.sel,L.preguntas.length-1));refreshEditor();dirty();toast('Pregunta eliminada.',{label:'Deshacer',act:'undo'});break;
+    case'undo':{const u=S.undo;if(u&&S.cur&&S.cur.id===u.lid){S.cur.preguntas.splice(u.idx,0,u.q);S.sel=u.idx;S.undo=null;if(S.view==='editor')refreshEditor();dirty();$('#toast').classList.remove('on')}break}
+    case'ok':q.opciones[j].correcta=!q.opciones[j].correcta;$('#qedit').innerHTML=qeditHTML();dirty();break;
+    case'addop':q.opciones.push({texto:'',correcta:false,feedback:''});$('#qedit').innerHTML=qeditHTML();dirty();break;
+    case'delop':q.opciones.splice(j,1);$('#qedit').innerHTML=qeditHTML();dirty();break;
+    case'addcr':q.criterios.push({criterio:'',puntos:1});$('#qedit').innerHTML=qeditHTML();dirty();break;
+    case'delcr':q.criterios.splice(j,1);$('#qedit').innerHTML=qeditHTML();dirty();break;
+    case'estudiante':saveNow();S.st={i:-1,name:'',ans:[],shown:{}};go('estudiante');break;
+    case'open':if(abrir(id)){S.edChecked=false;go('editor')}break;
+    case'play':if(abrir(id)){S.st={i:-1,name:'',ans:[],shown:{}};go('estudiante')}break;
+    case'borrar':if(b.dataset.sure){borrarLeccion(id)}else{b.dataset.sure='1';b.textContent='Toca otra vez para borrar';setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent='Borrar'}},4000)}break;
+    case'copiar':copiar(textoLeccion(L),'Lección copiada como texto.');break;
+    case'dl-csv':bajar(slug(L.titulo)+'.csv',csv(filasLeccion(L)));break;
+    case'dl-json':bajar(slug(L.titulo)+'.json',JSON.stringify(L,null,2));break;
+    case'start':S.st.name=($('#st-name')||{}).value||'';S.st.name=S.st.name.trim();S.st.i=0;render();break;
+    case'resp':{const qq=L.preguntas[S.st.i],o=qq.opciones[j];S.st.ans[S.st.i]={j,texto:o?o.texto:'',ok:qq.tipo==='multiple'?!!(o&&o.correcta):null};render();break}
+    case'saveopen':{const t=(($('#st-txt')||{}).value||'').trim();if(!t){toast('Escribe una respuesta antes de seguir.');return}S.st.ans[S.st.i]={texto:t,ok:null};render();break}
+    case'next':if(!S.st.ans[S.st.i])S.st.ans[S.st.i]={texto:'(nota leída)',ok:null};S.st.i++;render();window.scrollTo(0,0);break;
+    case'again':S.st={i:-1,name:'',ans:[],shown:{}};render();window.scrollTo(0,0);break;
+    case'tramo':{const v=$('#stv');if(!v)return;const A=+b.dataset.a,B=+b.dataset.b;v.currentTime=A;v.ontimeupdate=()=>{if(v.currentTime>=B){v.pause();v.ontimeupdate=null}};v.play().catch(()=>toast('Toca el botón de reproducir del video.'));break}
+    case'salir':go('editor');break;
+    case'st-copy':copiar(tsv(filasResultados()),'Resultados copiados. Puedes pegarlos en una planilla.');break;
+    case'st-dl':bajar(slug(L.titulo)+'-'+slug(S.st.name||'estudiante')+'.csv',csv(filasResultados()));break;
+    case'corregir':corregir();break;
+    case'tnow':{if(!PL||!q)return;q.t=Math.round(PL.get());ordenar();refreshEditor();dirty();break}
+    case'cfg-save':{CFG.key=(($('#cfg-key')||{}).value||'').trim();CFG.model=(($('#cfg-model')||{}).value)||CFG.model;guardarCfg();S.cfgMsg=CFG.key?'Ajustes guardados.':'Clave borrada.';render();break}
+    case'cfg-del':{CFG.key='';guardarCfg();S.cfgMsg='Clave borrada de este navegador.';render();break}
+    case'cfg-test':{const k=(($('#cfg-key')||{}).value||'').trim();if(k){CFG.key=k;CFG.model=(($('#cfg-model')||{}).value)||CFG.model;guardarCfg()}const out=$('#cfgst');if(out)out.textContent='Probando…';
+      claudeAPI('Responde solo con la palabra: listo',{maxTokens:20}).then(r=>{S.cfgMsg='Conexión correcta ✓ ('+CFG.model+')';if(out)out.textContent=S.cfgMsg}).catch(e=>{S.cfgMsg=e.message;if(out)out.textContent=e.message});break}
+    case'exp-all':bajar('cuestiona-lecciones.json',JSON.stringify(S.lessons,null,2));break;
+    case'seek':{if(PL){PL.seek(+b.dataset.t);PL.play()}break}
+    case'vresp':{const qq=L.preguntas[i],o=qq.opciones[j];if(S.st.ans[i])return;S.st.ans[i]={j,texto:o?o.texto:'',ok:qq.tipo==='multiple'?!!(o&&o.correcta):null};const el=$('#qc-'+i);if(el)el.outerHTML=qCard(i,false);break}
+    case'vsave':{const t=(($('#vt-'+i)||{}).value||'').trim();if(!t){toast('Escribe una respuesta antes de guardar.');return}S.st.ans[i]={texto:t,ok:null};const el=$('#qc-'+i);if(el)el.outerHTML=qCard(i,false);break}
+    case'vres':{if(PL)PL.pause();S.st.step=true;S.st.i=L.preguntas.length;render();window.scrollTo(0,0);break}
+    case'sinvideo':S.st.step=true;render();break;
+    case'prep':{if(b.disabled)return;b.disabled=true;const ps=m=>{S.prep=m;const el=$('#prepst');if(el)el.textContent=m};ps('Cargando Whisper…');const t0=performance.now();
+      cargarWhisper(p=>{if(p&&p.status==='progress'&&p.total>5e6)ps(`Descargando Whisper… ${Math.round(p.progress||0)}%`)}).then(async asr=>{ps('Probando…');const a=new Float32Array(16000*3);for(let i=0;i<a.length;i++)a[i]=0.2*Math.sin(i/16000*2*Math.PI*220)*Math.sin(i/16000*Math.PI*3);
+        const t1=performance.now();await asr(a,{return_timestamps:true,task:'transcribe',language:'spanish'});ps(`Whisper listo ✓ (carga ${Math.round((t1-t0)/1000)} s, prueba ${((performance.now()-t1)/1000).toFixed(1)} s)`)})
+        .catch(e=>ps('Whisper no pudo cargar: '+String(e&&e.message||e).slice(0,160))).finally(()=>{b.disabled=false});break}
+    case'g-copy':copiar(tsv(filasGrade()),'Corrección copiada. Puedes pegarla en una planilla.');break;
+    case'g-dl':bajar('correccion-abiertas.csv',csv(filasGrade()));break}});
+initDB();render();setSync();
+}
+</script>
+</body>
+</html>
